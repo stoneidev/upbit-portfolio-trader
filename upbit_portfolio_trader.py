@@ -88,7 +88,7 @@ class UpbitAutoTrader:
         with open(self.log_file, "a", encoding="utf-8") as f:
             f.write(log_line)
 
-    def fetch_upbit_candles(self, count=101):
+    def fetch_upbit_candles(self, count=200):
         """
         Fetches the latest count candles from Upbit for self.market.
         """

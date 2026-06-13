@@ -9,22 +9,22 @@
             errDiv.style.left = '0';
             errDiv.style.width = '100vw';
             errDiv.style.height = '100vh';
-            errDiv.style.background = 'rgba(220, 38, 38, 0.98)';
-            errDiv.style.color = '#ffffff';
+            errDiv.style.background = '#7f1d1d';
+            errDiv.style.color = '#fecaca';
             errDiv.style.padding = '40px';
             errDiv.style.zIndex = '999999';
             errDiv.style.fontFamily = 'monospace';
-            errDiv.style.fontSize = '15px';
+            errDiv.style.fontSize = '14px';
             errDiv.style.overflow = 'auto';
             errDiv.style.lineHeight = '1.6';
             
             errDiv.innerHTML = `
-                <h1 style="margin-bottom: 20px; font-size: 22px; font-weight: 700;">🚨 전역 자바스크립트 오류 감지</h1>
-                <p><strong>오류 메시지:</strong> ${message}</p>
-                <p><strong>발생 위치:</strong> ${source}</p>
-                <p><strong>라인/컬럼:</strong> Line ${lineno} | Col ${colno}</p>
-                <hr style="margin: 20px 0; border: none; border-top: 1px solid rgba(255,255,255,0.2);">
-                <pre style="white-space: pre-wrap; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px;">${error ? error.stack : '스택 정보 없음'}</pre>
+                <h1 style="margin-bottom: 20px; font-size: 20px; font-weight: 700; color: #fca5a5;">🚨 SYSTEM EXCEPTION</h1>
+                <p><strong>Message:</strong> ${message}</p>
+                <p><strong>Source:</strong> ${source}</p>
+                <p><strong>Line/Col:</strong> Line ${lineno} | Col ${colno}</p>
+                <hr style="margin: 20px 0; border: none; border-top: 1px solid rgba(255,255,255,0.1);">
+                <pre style="white-space: pre-wrap; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 4px;">${error ? error.stack : 'No stack trace available'}</pre>
             `;
             document.body.appendChild(errDiv);
             return false;
@@ -32,33 +32,33 @@
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WFO Portfolio Intelligence</title>
+    <title>WFO Portfolio Terminal</title>
     <!-- Google Fonts: Plus Jakarta Sans & Fira Code -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fira+Code:wght@400;500;700&display=swap" rel="stylesheet">
     
     <!-- Lightweight Charts CDN -->
     <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
     
     <style>
         :root {
-            --bg-color: #060913; /* 깊고 무게감 있는 네이비 블랙 */
-            --card-bg: rgba(13, 20, 38, 0.45);
-            --card-border: rgba(255, 255, 255, 0.04);
-            --text-primary: #f8fafc;
-            --text-secondary: #94a3b8;
-            --accent-green: #10b981;
-            --accent-red: #ef4444;
-            --accent-blue: #3b82f6;
-            --accent-purple: #8b5cf6;
-            --font-main: 'Plus Jakarta Sans', sans-serif;
-            --font-mono: 'Fira Code', monospace;
+            --bg-color: #09090b;       /* Zinc 950 - Absolute Deep Dark */
+            --panel-bg: #09090b;       /* Consistent Panel Background */
+            --border-color: #27272a;   /* Zinc 800 - Fine Border Lines */
+            --border-muted: #18181b;   /* Zinc 900 - Muted Inner Borders */
             
-            /* 그라디언트 테크 효과 */
-            --gradient-blue-purple: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-            --gradient-emerald-green: linear-gradient(135deg, #34d399 0%, #10b981 100%);
-            --gradient-rose-red: linear-gradient(135deg, #fb7185 0%, #ef4444 100%);
+            --text-primary: #f4f4f5;   /* Zinc 100 */
+            --text-secondary: #a1a1aa; /* Zinc 400 */
+            --text-muted: #52525b;     /* Zinc 600 */
+            
+            --accent-green: #22c55e;   /* Emerald 500 */
+            --accent-red: #ef4444;     /* Red 500 */
+            --accent-blue: #3b82f6;    /* Blue 500 */
+            --accent-purple: #818cf8;  /* Indigo 400 */
+            
+            --font-main: 'Plus Jakarta Sans', -apple-system, sans-serif;
+            --font-mono: 'Fira Code', monospace;
         }
 
         * {
@@ -69,563 +69,656 @@
 
         body {
             background-color: var(--bg-color);
-            background-image: 
-                radial-gradient(circle at 5% 10%, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
-                radial-gradient(circle at 95% 90%, rgba(139, 92, 246, 0.05) 0%, transparent 50%);
-            background-attachment: fixed;
             color: var(--text-primary);
             font-family: var(--font-main);
             min-height: 100vh;
-            padding: 32px 24px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
             -webkit-font-smoothing: antialiased;
         }
 
-        .dashboard-container {
-            max-width: 1400px;
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-color);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+
+        /* Grid-aligned Container */
+        .terminal-container {
+            max-width: 1600px;
+            width: 100%;
             margin: 0 auto;
             display: flex;
             flex-direction: column;
-            gap: 28px;
+            gap: 16px;
         }
 
+        /* Header block */
         header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 20px 28px;
-            background: rgba(13, 20, 38, 0.3);
-            border: 1px solid var(--card-border);
-            backdrop-filter: blur(24px);
-            border-radius: 20px;
+            padding: 12px 20px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
         }
 
         header h1 {
-            font-size: 1.35rem;
+            font-size: 0.9rem;
             font-weight: 800;
-            letter-spacing: -0.03em;
+            letter-spacing: 0.05em;
             color: #ffffff;
             display: flex;
             align-items: center;
             gap: 8px;
+            text-transform: uppercase;
         }
 
         header h1 span {
-            background: var(--gradient-blue-purple);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            color: var(--text-secondary);
+            font-weight: 400;
         }
 
         .header-meta {
             display: flex;
             align-items: center;
-            gap: 20px;
+            gap: 16px;
         }
 
-        .badge {
-            padding: 6px 14px;
-            border-radius: 9999px;
-            font-size: 0.7rem;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            border: 1px solid transparent;
-            transition: all 0.3s ease;
-        }
-
-        .badge-paper {
-            background-color: rgba(59, 130, 246, 0.08);
-            color: #60a5fa;
-            border-color: rgba(59, 130, 246, 0.2);
-        }
-
-        .badge-live {
-            background-color: rgba(239, 68, 68, 0.08);
-            color: #f87171;
-            border-color: rgba(239, 68, 68, 0.2);
-        }
-
-        @keyframes pulse-breathing {
-            0% { opacity: 0.4; }
-            100% { opacity: 1; }
-        }
-
-        .badge-dead {
-            background-color: rgba(244, 63, 94, 0.12);
-            color: #fb7185;
-            border-color: rgba(244, 63, 94, 0.25);
-            animation: pulse-breathing 1s infinite alternate;
-        }
-
-        .update-time {
-            font-size: 0.8rem;
-            color: var(--text-secondary);
-            font-family: var(--font-mono);
-            font-weight: 500;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 24px;
-        }
-
-        .card {
-            background: var(--card-bg);
-            border: 1px solid var(--card-border);
-            backdrop-filter: blur(24px);
-            border-radius: 20px;
-            padding: 24px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
-            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease, background 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 4px;
-            height: 100%;
-            background: transparent;
-            transition: background 0.3s ease;
-        }
-
-        .card:hover {
-            transform: translateY(-4px);
-            border-color: rgba(255, 255, 255, 0.09);
-            background: rgba(13, 20, 38, 0.55);
-            box-shadow: 0 15px 45px rgba(0, 0, 0, 0.35);
-        }
-
-        .card.border-blue::before { background: var(--accent-blue); }
-        .card.border-purple::before { background: var(--accent-purple); }
-        .card.border-green::before { background: var(--accent-green); }
-
-        .card-title {
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            margin-bottom: 10px;
-        }
-
-        .card-value {
-            font-size: 1.6rem;
-            font-weight: 800;
-            font-family: var(--font-mono);
-            letter-spacing: -0.04em;
-            color: #ffffff;
-        }
-
-        .card-sub {
-            margin-top: 10px;
-            font-size: 0.8rem;
-            color: var(--text-secondary);
-            font-weight: 500;
-        }
-
-        .grid-levels {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 14px;
-            background: rgba(0, 0, 0, 0.2);
-            padding: 8px 12px;
-            border-radius: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.02);
-        }
-
-        .grid-level-dot {
+        .system-status {
             display: flex;
             align-items: center;
             gap: 6px;
             font-size: 0.72rem;
-            color: var(--text-secondary);
             font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
         }
 
-        .dot {
-            width: 7px;
-            height: 7px;
-            border-radius: 50%;
-            background-color: rgba(255, 255, 255, 0.15);
-            transition: all 0.4s ease;
-        }
-
-        .dot.active {
-            background-color: var(--accent-green);
-            box-shadow: 0 0 10px var(--accent-green);
-        }
-
-        .visuals-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
-            gap: 24px;
-        }
-
-        .visual-column-title {
-            font-size: 0.95rem;
-            font-weight: 800;
-            margin-bottom: 16px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid var(--card-border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            letter-spacing: -0.02em;
-        }
-
-        .gauge-wrapper {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            height: 90px;
-            margin-bottom: 14px;
-        }
-
-        .gauge-bar-outer {
-            width: 100%;
+        .status-dot {
+            width: 6px;
             height: 6px;
-            background: rgba(255, 255, 255, 0.03);
-            border-radius: 9999px;
+            border-radius: 50%;
+            background-color: var(--accent-green);
+        }
+        .status-dot.offline {
+            background-color: var(--accent-red);
+        }
+
+        .update-time {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+        }
+
+        /* Metrics Bar (Shared-border design) */
+        .metrics-bar {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            background: var(--border-color);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
             overflow: hidden;
-            position: relative;
-            margin-top: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.01);
+            gap: 1px;
         }
 
-        .gauge-bar-inner {
-            height: 100%;
-            width: 0%;
-            background: var(--accent-blue);
-            transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.5s ease;
-            border-radius: 9999px;
-        }
-
-        .gauge-center-line {
-            position: absolute;
-            left: 50%;
-            top: 0;
-            width: 1px;
-            height: 100%;
-            background: rgba(255, 255, 255, 0.25);
-            z-index: 2;
-        }
-
-        .chart-section {
-            background: var(--card-bg);
-            border: 1px solid var(--card-border);
-            border-radius: 24px;
-            padding: 28px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+        .metric-cell {
+            background: var(--panel-bg);
+            padding: 20px;
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 8px;
+            position: relative;
         }
 
-        .chart-header {
+        .metric-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
-        .chart-title {
-            font-size: 1.05rem;
-            font-weight: 800;
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            font-family: var(--font-mono);
             letter-spacing: -0.02em;
             color: #ffffff;
         }
 
+        .metric-sub {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Level indicators instead of dots */
+        .level-indicator {
+            display: flex;
+            gap: 4px;
+        }
+        
+        .level-badge {
+            display: inline-block;
+            padding: 1px 6px;
+            font-size: 0.62rem;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            border: 1px solid var(--border-color);
+            background: var(--bg-color);
+            color: var(--text-muted);
+            border-radius: 2px;
+            transition: all 0.2s ease;
+        }
+        
+        .level-badge.active {
+            background: rgba(34, 197, 94, 0.08);
+            border-color: var(--accent-green);
+            color: var(--accent-green);
+        }
+
+        /* Main Workspace Grid (Left: Charts, Right: Indicators/Control) */
+        .workspace-grid {
+            display: grid;
+            grid-template-columns: 7fr 3fr;
+            gap: 16px;
+        }
+
+        @media (max-width: 1024px) {
+            .workspace-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Panel Components */
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-muted);
+        }
+
+        .panel-title {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #ffffff;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Tab switch flat design */
         .tab-switcher {
             display: flex;
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 12px;
-            padding: 3px;
-            border: 1px solid var(--card-border);
+            background: #18181b;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 2px;
         }
 
         .tab-btn {
             background: transparent;
             border: none;
             color: var(--text-secondary);
-            padding: 7px 16px;
-            border-radius: 10px;
-            font-weight: 700;
-            font-size: 0.8rem;
+            padding: 5px 12px;
+            border-radius: 2px;
+            font-weight: 600;
+            font-size: 0.72rem;
             cursor: pointer;
-            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: all 0.2s;
         }
 
         .tab-btn.active {
-            background: rgba(255, 255, 255, 0.08);
+            background: var(--border-color);
             color: #ffffff;
-            border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
+        /* Chart Wrappers */
         .chart-container-wrapper {
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 16px;
         }
 
         .chart-wrapper {
             position: relative;
             width: 100%;
-            background: rgba(0, 0, 0, 0.15);
-            border-radius: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.02);
+            background: #09090b;
+            border: 1px solid var(--border-muted);
+            border-radius: 4px;
             overflow: hidden;
         }
 
         #price-chart {
-            height: 320px;
+            height: 340px;
         }
 
         #zscore-chart {
-            height: 160px;
+            height: 140px;
         }
 
-        .log-section {
-            background: var(--card-bg);
-            border: 1px solid var(--card-border);
-            padding: 24px;
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+        /* Indicators Panel details */
+        .asset-indicator-block {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-muted);
+        }
+        .asset-indicator-block:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
         }
 
-        .log-title {
-            font-size: 1.125rem;
-            font-weight: 600;
-            margin-bottom: 16px;
+        .asset-indicator-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+
+        .asset-indicator-price {
+            font-family: var(--font-mono);
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        /* Slider Calibration Scale */
+        .calibration-row {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .calibration-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .calibration-value {
+            font-family: var(--font-mono);
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: #ffffff;
+        }
+
+        .slider-container {
+            position: relative;
+            height: 14px;
+            margin-top: 4px;
             display: flex;
             align-items: center;
-            justify-content: space-between;
         }
 
-        .terminal-box {
-            background: rgba(5, 7, 12, 0.95);
-            border: 1px solid rgba(255,255,255,0.05);
-            border-radius: 12px;
+        .slider-track {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--border-color);
+        }
+
+        .slider-mark {
+            position: absolute;
+            width: 1px;
+            height: 6px;
+            background: var(--text-muted);
+            transform: translateX(-50%);
+        }
+        .slider-mark.buy-mark {
+            background: var(--accent-green);
+        }
+        .slider-mark.sell-mark {
+            background: var(--accent-red);
+        }
+
+        .slider-handle {
+            position: absolute;
+            width: 4px;
+            height: 10px;
+            background: #ffffff;
+            transform: translate(-50%, 0);
+            transition: left 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 0 6px rgba(255, 255, 255, 0.6);
+        }
+
+        /* Volume Power bar */
+        .vp-container {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .vp-track {
+            height: 3px;
+            background: var(--border-color);
+            position: relative;
+            overflow: hidden;
+            border-radius: 1px;
+        }
+
+        .vp-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--accent-blue);
+            transition: width 0.3s ease;
+        }
+
+        /* Flat Console Log Panel */
+        .console-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .console-header {
+            background: #0d0d0f;
+            border-bottom: 1px solid var(--border-color);
+            padding: 8px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .console-filename {
+            font-size: 0.65rem;
+            font-family: var(--font-mono);
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .console-box {
+            background: #09090b;
             padding: 16px;
-            height: 250px;
+            height: 220px;
             overflow-y: auto;
             font-family: var(--font-mono);
-            font-size: 0.825rem;
+            font-size: 0.72rem;
             line-height: 1.6;
             color: #d1d5db;
         }
 
-        .log-line {
-            margin-bottom: 6px;
-            border-bottom: 1px solid rgba(255,255,255,0.02);
-            padding-bottom: 4px;
+        .console-line {
+            margin-bottom: 4px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.01);
+            padding-bottom: 2px;
+            white-space: pre-wrap;
         }
 
-        .log-line:last-child {
+        .console-line:last-child {
             border: none;
-            margin-bottom: 0;
         }
 
-        .terminal-box::-webkit-scrollbar {
-            width: 8px;
-        }
-        .terminal-box::-webkit-scrollbar-thumb {
-            background: rgba(255,255,255,0.15);
-            border-radius: 4px;
-        }
-        
-        .txt-green { color: var(--accent-green); }
-        .txt-red { color: var(--accent-red); }
-        .txt-blue { color: var(--accent-blue); }
-        .txt-purple { color: var(--accent-purple); }
-        
-        .pulse {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background-color: var(--accent-green);
-            animation: pulse-animation 2s infinite;
+        /* Muted badges */
+        .badge {
+            padding: 2px 8px;
+            font-size: 0.62rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-radius: 2px;
         }
 
-        @keyframes pulse-animation {
-            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
-            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        .badge-paper {
+            background-color: rgba(59, 130, 246, 0.08);
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.2);
         }
+
+        .badge-live {
+            background-color: rgba(34, 197, 94, 0.08);
+            color: #4ade80;
+            border: 1px solid rgba(34, 197, 94, 0.2);
+        }
+
+        .badge-dead {
+            background-color: rgba(239, 68, 68, 0.08);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .txt-green { color: var(--accent-green) !important; }
+        .txt-red { color: var(--accent-red) !important; }
+        .txt-blue { color: var(--accent-blue) !important; }
+        .txt-purple { color: var(--accent-purple) !important; }
     </style>
 </head>
 <body>
 
-    <div class="dashboard-container">
+    <div class="terminal-container">
         
         <!-- Header -->
         <header>
-            <h1><span>WFO Portfolio</span> Intelligence</h1>
+            <h1><span>WFO</span> / Portfolio Terminal</h1>
             <div class="header-meta">
-                <div class="pulse"></div>
-                <div class="update-time" id="last-update">대기 중...</div>
+                <div class="system-status">
+                    <div class="status-dot" id="status-dot-indicator"></div>
+                    <span id="last-update">CONNECTING...</span>
+                </div>
                 <span class="badge badge-paper" id="bot-mode">PAPER</span>
             </div>
         </header>
         
-        <!-- Stats Grid (Portfolio Split) -->
-        <div class="stats-grid">
+        <!-- Metrics Bar (Shared-border Cells) -->
+        <div class="metrics-bar">
             <!-- Unified Balance -->
-            <div class="card border-blue">
-                <div class="card-title">통합 포트폴리오 평가 자산</div>
-                <div class="card-value" id="portfolio-balance">0 원</div>
-                <div class="card-sub">초기 원금: 1,000,000 원</div>
+            <div class="metric-cell">
+                <div class="metric-label">통합 평가 자산</div>
+                <div class="metric-value" id="portfolio-balance">0 KRW</div>
+                <div class="metric-sub">초기 투자 원금: 1,000,000 KRW</div>
             </div>
             
             <!-- XRP Card -->
-            <div class="card border-purple">
-                <div class="card-title" style="color:#c084fc;">XRP 계좌 현황 (50%)</div>
-                <div class="card-value" id="xrp-balance" style="font-size:1.4rem;">0 원</div>
-                <div class="card-sub" style="display:flex; justify-content:space-between; margin-top:4px;">
+            <div class="metric-cell">
+                <div class="metric-label">
+                    <span>XRP 포트폴리오 (50%)</span>
+                    <span id="xrp-ts-badge" class="badge badge-live" style="display:none; padding:1px 6px; font-size:0.55rem;">TS ACTIVE</span>
+                </div>
+                <div class="metric-value" id="xrp-balance">0 KRW</div>
+                <div class="metric-sub">
                     <span>수익률: <strong id="xrp-return">0.00%</strong></span>
-                    <span id="xrp-ts-badge" class="badge" style="display:none; padding:1px 8px; font-size:0.55rem; background:rgba(139, 92, 246, 0.08); color:#a78bfa; border:1px solid rgba(139,92,246,0.15);">TS 활성</span>
+                    <div class="level-indicator">
+                        <span class="level-badge" id="xrp-dot-1">L1</span>
+                        <span class="level-badge" id="xrp-dot-2">L2</span>
+                        <span class="level-badge" id="xrp-dot-3">L3</span>
+                    </div>
                 </div>
-                <!-- Mini positions info -->
-                <div id="xrp-pos-detail" style="font-size:0.75rem; color:var(--text-secondary); margin-top:8px; display:none; font-family:var(--font-mono);">
-                    평단: <span id="xrp-avg">0</span>원 | 수량: <span id="xrp-qty">0</span>XRP
-                </div>
-                <div class="grid-levels">
-                    <div class="grid-level-dot"><div class="dot" id="xrp-dot-1"></div>1차</div>
-                    <div class="grid-level-dot"><div class="dot" id="xrp-dot-2"></div>2차</div>
-                    <div class="grid-level-dot"><div class="dot" id="xrp-dot-3"></div>3차</div>
+                <!-- Mini position details -->
+                <div id="xrp-pos-detail" style="font-size:0.68rem; color:var(--text-secondary); margin-top:6px; display:none; font-family:var(--font-mono); border-top: 1px dashed var(--border-muted); padding-top: 6px;">
+                    평단: <span id="xrp-avg">0</span> KRW | 잔고: <span id="xrp-qty">0</span> XRP
                 </div>
             </div>
 
             <!-- ETH Card -->
-            <div class="card border-green">
-                <div class="card-title" style="color:#34d399;">ETH 계좌 현황 (50%)</div>
-                <div class="card-value" id="eth-balance" style="font-size:1.4rem;">0 원</div>
-                <div class="card-sub" style="display:flex; justify-content:space-between; margin-top:4px;">
+            <div class="metric-cell">
+                <div class="metric-label">
+                    <span>ETH 포트폴리오 (50%)</span>
+                    <span id="eth-ts-badge" class="badge badge-live" style="display:none; padding:1px 6px; font-size:0.55rem;">TS ACTIVE</span>
+                </div>
+                <div class="metric-value" id="eth-balance">0 KRW</div>
+                <div class="metric-sub">
                     <span>수익률: <strong id="eth-return">0.00%</strong></span>
-                    <span id="eth-ts-badge" class="badge" style="display:none; padding:1px 8px; font-size:0.55rem; background:rgba(16, 185, 129, 0.08); color:#34d399; border:1px solid rgba(16,185,129,0.15);">TS 활성</span>
+                    <div class="level-indicator">
+                        <span class="level-badge" id="eth-dot-1">L1</span>
+                        <span class="level-badge" id="eth-dot-2">L2</span>
+                        <span class="level-badge" id="eth-dot-3">L3</span>
+                    </div>
                 </div>
-                <!-- Mini positions info -->
-                <div id="eth-pos-detail" style="font-size:0.75rem; color:var(--text-secondary); margin-top:8px; display:none; font-family:var(--font-mono);">
-                    평단: <span id="eth-avg">0</span>원 | 수량: <span id="eth-qty">0</span>ETH
-                </div>
-                <div class="grid-levels">
-                    <div class="grid-level-dot"><div class="dot" id="eth-dot-1"></div>1차</div>
-                    <div class="grid-level-dot"><div class="dot" id="eth-dot-2"></div>2차</div>
-                    <div class="grid-level-dot"><div class="dot" id="eth-dot-3"></div>3차</div>
+                <!-- Mini position details -->
+                <div id="eth-pos-detail" style="font-size:0.68rem; color:var(--text-secondary); margin-top:6px; display:none; font-family:var(--font-mono); border-top: 1px dashed var(--border-muted); padding-top: 6px;">
+                    평단: <span id="eth-avg">0</span> KRW | 잔고: <span id="eth-qty">0</span> ETH
                 </div>
             </div>
         </div>
-
-        <!-- Indicators Grid (Dual columns) -->
-        <div class="visuals-grid">
-            <!-- XRP Indicators -->
-            <div class="card">
-                <div class="visual-column-title" style="color:#c084fc;">
-                    <span>XRP 실시간 보조 지표</span>
-                    <span id="xrp-live-price" style="font-family:var(--font-mono);">0 원</span>
-                </div>
-                <!-- Zscore -->
-                <div class="gauge-wrapper">
-                    <div style="font-size:1.4rem; font-weight:800; font-family:var(--font-mono); color:#ffffff;" id="xrp-z-val">0.00</div>
-                    <div style="font-size:0.68rem; color:var(--text-secondary); margin-top:2px;">Z-Score (MA 100, -1.2 진입)</div>
-                    <div class="gauge-bar-outer">
-                        <div class="gauge-center-line"></div>
-                        <div class="gauge-bar-inner" id="xrp-z-bar"></div>
+        
+        <!-- Workspace Grid -->
+        <div class="workspace-grid">
+            
+            <!-- Left Area: Charts -->
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+                <!-- Market Analysis Chart -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2 class="panel-title">MARKET PRICE & MOMENTUM</h2>
+                        <div class="tab-switcher">
+                            <button class="tab-btn active" id="btn-xrp" onclick="switchTab('xrp')">XRP / KRW</button>
+                            <button class="tab-btn" id="btn-eth" onclick="switchTab('eth')">ETH / KRW</button>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-container-wrapper">
+                        <div class="chart-wrapper">
+                            <div id="price-chart"></div>
+                        </div>
+                        <div class="chart-wrapper">
+                            <div id="zscore-chart"></div>
+                        </div>
                     </div>
                 </div>
-                <!-- Vol Power -->
-                <div class="gauge-wrapper">
-                    <div style="font-size:1.4rem; font-weight:800; font-family:var(--font-mono); color:#ffffff;" id="xrp-vp-val">50.0%</div>
-                    <div style="font-size:0.68rem; color:var(--text-secondary); margin-top:2px;">체결강도 (Volume Power, 50% 초과)</div>
-                    <div class="gauge-bar-outer">
-                        <div class="gauge-center-line"></div>
-                        <div class="gauge-bar-inner" id="xrp-vp-bar"></div>
+                
+                <!-- Cumulative Portfolio Growth Curve -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2 class="panel-title">PORTFOLIO ACCUMULATED ASSETS</h2>
+                        <div style="font-size:0.75rem; color:var(--text-secondary); font-family: var(--font-mono);" id="equity-update-time">PENDING...</div>
                     </div>
-                </div>
-            </div>
-
-            <!-- ETH Indicators -->
-            <div class="card">
-                <div class="visual-column-title" style="color:#34d399;">
-                    <span>ETH 실시간 보조 지표</span>
-                    <span id="eth-live-price" style="font-family:var(--font-mono);">0 원</span>
-                </div>
-                <!-- Zscore -->
-                <div class="gauge-wrapper">
-                    <div style="font-size:1.4rem; font-weight:800; font-family:var(--font-mono); color:#ffffff;" id="eth-z-val">0.00</div>
-                    <div style="font-size:0.68rem; color:var(--text-secondary); margin-top:2px;">Z-Score (MA 100, -1.2 진입)</div>
-                    <div class="gauge-bar-outer">
-                        <div class="gauge-center-line"></div>
-                        <div class="gauge-bar-inner" id="eth-z-bar"></div>
-                    </div>
-                </div>
-                <!-- Vol Power -->
-                <div class="gauge-wrapper">
-                    <div style="font-size:1.4rem; font-weight:800; font-family:var(--font-mono); color:#ffffff;" id="eth-vp-val">50.0%</div>
-                    <div style="font-size:0.68rem; color:var(--text-secondary); margin-top:2px;">체결강도 (Volume Power, 50% 초과)</div>
-                    <div class="gauge-bar-outer">
-                        <div class="gauge-center-line"></div>
-                        <div class="gauge-bar-inner" id="eth-vp-bar"></div>
+                    
+                    <div class="chart-container-wrapper">
+                        <div class="chart-wrapper">
+                            <div id="equity-chart" style="height: 320px;"></div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Charts Section with Tabs -->
-        <div class="chart-section">
-            <div class="chart-header">
-                <h2 class="chart-title" id="chart-section-title">시장 분석 차트</h2>
-                <div class="tab-switcher">
-                    <button class="tab-btn active" id="btn-xrp" onclick="switchTab('xrp')">XRP (리플)</button>
-                    <button class="tab-btn" id="btn-eth" onclick="switchTab('eth')">ETH (이더리움)</button>
+            <!-- Right Area: Indicators Monitor -->
+            <div class="panel" style="gap: 20px;">
+                <div class="panel-header">
+                    <h2 class="panel-title">REAL-TIME SIGNAL MONITOR</h2>
+                </div>
+                
+                <!-- XRP Indicators -->
+                <div class="asset-indicator-block">
+                    <div class="asset-indicator-title" style="color: #a78bfa;">
+                        <span>XRP INDICATORS</span>
+                        <span id="xrp-live-price" class="asset-indicator-price">0 KRW</span>
+                    </div>
+                    
+                    <!-- Z-Score calibration slider -->
+                    <div class="calibration-row">
+                        <div class="calibration-label">
+                            <span>Z-Score (MA 100)</span>
+                            <span id="xrp-z-val" class="calibration-value">0.00</span>
+                        </div>
+                        <div class="slider-container">
+                            <div class="slider-track"></div>
+                            <div class="slider-mark buy-mark" style="left: 30%;"></div>  <!-- -1.2 threshold -->
+                            <div class="slider-mark" style="left: 50%;"></div>          <!-- 0.0 center -->
+                            <div class="slider-mark sell-mark" style="left: 75%;"></div> <!-- +1.5 threshold -->
+                            <div class="slider-handle" id="xrp-z-bar" style="left: 50%;"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Volume Power thin progress bar -->
+                    <div class="vp-container">
+                        <div class="calibration-label">
+                            <span>Volume Power (Buy/Sell Ratio)</span>
+                            <span id="xrp-vp-val" class="calibration-value">50.0%</span>
+                        </div>
+                        <div class="vp-track">
+                            <div class="vp-fill" id="xrp-vp-bar"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ETH Indicators -->
+                <div class="asset-indicator-block">
+                    <div class="asset-indicator-title" style="color: #34d399;">
+                        <span>ETH INDICATORS</span>
+                        <span id="eth-live-price" class="asset-indicator-price">0 KRW</span>
+                    </div>
+                    
+                    <!-- Z-Score calibration slider -->
+                    <div class="calibration-row">
+                        <div class="calibration-label">
+                            <span>Z-Score (MA 100)</span>
+                            <span id="eth-z-val" class="calibration-value">0.00</span>
+                        </div>
+                        <div class="slider-container">
+                            <div class="slider-track"></div>
+                            <div class="slider-mark buy-mark" style="left: 30%;"></div>  <!-- -1.2 threshold -->
+                            <div class="slider-mark" style="left: 50%;"></div>          <!-- 0.0 center -->
+                            <div class="slider-mark sell-mark" style="left: 75%;"></div> <!-- +1.5 threshold -->
+                            <div class="slider-handle" id="eth-z-bar" style="left: 50%;"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Volume Power thin progress bar -->
+                    <div class="vp-container">
+                        <div class="calibration-label">
+                            <span>Volume Power (Buy/Sell Ratio)</span>
+                            <span id="eth-vp-val" class="calibration-value">50.0%</span>
+                        </div>
+                        <div class="vp-track">
+                            <div class="vp-fill" id="eth-vp-bar"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
             
-            <div class="chart-container-wrapper">
-                <div class="chart-wrapper">
-                    <div id="price-chart"></div>
-                </div>
-                <div class="chart-wrapper">
-                    <div id="zscore-chart"></div>
-                </div>
-            </div>
         </div>
 
-        <!-- 누적 자산 성장 곡선 -->
-        <div class="chart-section">
-            <div class="chart-header">
-                <h2 class="chart-title">누적 자산 성장 추이 (2개년 이력)</h2>
-                <div style="font-size:0.75rem; color:var(--text-secondary);" id="equity-update-time">대기 중...</div>
+        <!-- Logs Panel -->
+        <div class="console-panel">
+            <div class="console-header">
+                <span class="console-filename">CONSOLE // upbit_portfolio_trader.log</span>
             </div>
-            
-            <div class="chart-container-wrapper">
-                <div class="chart-wrapper">
-                    <div id="equity-chart" style="height: 320px;"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Logs -->
-        <div class="log-section">
-            <div class="log-title-wrapper">
-                <div class="log-title">통합 트레이더 실시간 로그</div>
-            </div>
-            <div class="ide-container">
-                <div class="ide-bar">
-                    <div class="ide-dots">
-                        <div class="ide-dot red"></div>
-                        <div class="ide-dot yellow"></div>
-                        <div class="ide-dot green"></div>
-                    </div>
-                    <div class="ide-filename">upbit_portfolio_log.txt</div>
-                    <div></div>
-                </div>
-                <div class="terminal-box" id="terminal-logs">
-                    <div class="log-line">대기 중...</div>
-                </div>
+            <div class="console-box" id="terminal-logs">
+                <div class="console-line">SYSTEM INITIALIZED. WAITING FOR METRICS SYNC...</div>
             </div>
         </div>
 
@@ -642,21 +735,21 @@
             const chartOptions = {
                 layout: {
                     background: { color: 'transparent' },
-                    textColor: '#9ca3af',
-                    fontSize: 11,
-                    fontFamily: "'Outfit', sans-serif"
+                    textColor: '#71717a',
+                    fontSize: 10,
+                    fontFamily: "'Fira Code', monospace"
                 },
                 grid: {
-                    vertLines: { color: 'rgba(255, 255, 255, 0.03)' },
-                    horzLines: { color: 'rgba(255, 255, 255, 0.03)' },
+                    vertLines: { color: '#18181b' },
+                    horzLines: { color: '#18181b' },
                 },
                 timeScale: {
-                    borderColor: 'rgba(255, 255, 255, 0.08)',
+                    borderColor: '#27272a',
                     timeVisible: true,
                     secondsVisible: false,
                 },
                 rightPriceScale: {
-                    borderColor: 'rgba(255, 255, 255, 0.08)',
+                    borderColor: '#27272a',
                 },
                 handleScroll: {
                     mouseWheel: false,
@@ -678,10 +771,10 @@
                 crosshair: { mode: LightweightCharts.CrosshairMode.Normal }
             });
             candleSeries = priceChart.addCandlestickSeries({
-                upColor: '#10b981',
+                upColor: '#22c55e',
                 downColor: '#ef4444',
                 borderVisible: false,
-                wickUpColor: '#10b981',
+                wickUpColor: '#22c55e',
                 wickDownColor: '#ef4444',
             });
 
@@ -692,8 +785,8 @@
                 crosshair: { mode: LightweightCharts.CrosshairMode.Normal }
             });
             zscoreSeries = zscoreChart.addLineSeries({
-                color: '#8b5cf6',
-                lineWidth: 2,
+                color: '#818cf8',
+                lineWidth: 1.5,
             });
             
             // 3. Equity History Area Chart
@@ -701,16 +794,16 @@
             equityChart = LightweightCharts.createChart(equityDom, {
                 ...chartOptions,
                 timeScale: {
-                    borderColor: 'rgba(255, 255, 255, 0.08)',
+                    borderColor: '#27272a',
                     timeVisible: false, // Day scale only
                 },
                 crosshair: { mode: LightweightCharts.CrosshairMode.Normal }
             });
             equitySeries = equityChart.addAreaSeries({
-                lineColor: '#10b981',
-                topColor: 'rgba(16, 185, 129, 0.35)',
-                bottomColor: 'rgba(16, 185, 129, 0.0)',
-                lineWidth: 2,
+                lineColor: '#22c55e',
+                topColor: 'rgba(34, 197, 94, 0.08)',
+                bottomColor: 'rgba(34, 197, 94, 0.0)',
+                lineWidth: 1.5,
             });
             
             // Sync Time Scales (Price & Z-score)
@@ -799,7 +892,7 @@
         // Update single asset UI indicators
         function updateAssetUI(key, dataObj) {
             // Balance & return
-            document.getElementById(`${key}-balance`).innerText = `${Math.floor(dataObj.balance).toLocaleString()} 원`;
+            document.getElementById(`${key}-balance`).innerText = `${Math.floor(dataObj.balance).toLocaleString()} KRW`;
             
             const returnEl = document.getElementById(`${key}-return`);
             if (dataObj.in_trade) {
@@ -818,38 +911,39 @@
             }
             
             // TS badge
-            document.getElementById(`${key}-ts-badge`).style.display = dataObj.trailing_active ? 'block' : 'none';
+            document.getElementById(`${key}-ts-badge`).style.display = dataObj.trailing_active ? 'inline-block' : 'none';
             
-            // Grid Dots
-            document.getElementById(`${key}-dot-1`).className = dataObj.in_trade ? 'dot active' : 'dot';
-            document.getElementById(`${key}-dot-2`).className = dataObj.level_2_filled ? 'dot active' : 'dot';
-            document.getElementById(`${key}-dot-3`).className = dataObj.level_3_filled ? 'dot active' : 'dot';
+            // Grid Levels (Active state badges instead of dots)
+            document.getElementById(`${key}-dot-1`).className = dataObj.in_trade ? 'level-badge active' : 'level-badge';
+            document.getElementById(`${key}-dot-2`).className = dataObj.level_2_filled ? 'level-badge active' : 'level-badge';
+            document.getElementById(`${key}-dot-3`).className = dataObj.level_3_filled ? 'level-badge active' : 'level-badge';
             
             // Prices, Z-score, Volpower
-            document.getElementById(`${key}-live-price`).innerText = `${Math.floor(dataObj.current_price).toLocaleString()} 원`;
+            document.getElementById(`${key}-live-price`).innerText = `${Math.floor(dataObj.current_price).toLocaleString()} KRW`;
             
             const zVal = parseFloat(dataObj.z_score);
             document.getElementById(`${key}-z-val`).innerText = zVal.toFixed(2);
             const zValEl = document.getElementById(`${key}-z-val`);
-            if (zVal <= -1.2) zValEl.className = 'txt-green';
-            else if (zVal >= 1.5) zValEl.className = 'txt-red';
-            else zValEl.className = '';
+            if (zVal <= -1.2) zValEl.className = 'calibration-value txt-green';
+            else if (zVal >= 1.5) zValEl.className = 'calibration-value txt-red';
+            else zValEl.className = 'calibration-value';
             
+            // Set slider handle pointer position (mapped -3.0 to +3.0 onto 0% to 100%)
             let zPct = ((zVal + 3.0) / 6.0) * 100;
             zPct = Math.max(0, Math.min(100, zPct));
             const zBar = document.getElementById(`${key}-z-bar`);
-            zBar.style.width = `${zPct}%`;
-            zBar.style.backgroundColor = zVal <= -1.2 ? 'var(--accent-green)' : (zVal >= 1.5 ? 'var(--accent-red)' : 'var(--accent-blue)');
+            zBar.style.left = `${zPct}%`;
+            zBar.style.backgroundColor = zVal <= -1.2 ? '#22c55e' : (zVal >= 1.5 ? '#ef4444' : '#ffffff');
             
             const vpVal = parseFloat(dataObj.vol_power);
             document.getElementById(`${key}-vp-val`).innerText = `${vpVal.toFixed(1)}%`;
             const vpValEl = document.getElementById(`${key}-vp-val`);
-            if (vpVal > 50.0) vpValEl.className = 'txt-green';
-            else vpValEl.className = 'txt-red';
+            if (vpVal > 50.0) vpValEl.className = 'calibration-value txt-green';
+            else vpValEl.className = 'calibration-value txt-red';
             
             const vpBar = document.getElementById(`${key}-vp-bar`);
             vpBar.style.width = `${vpVal}%`;
-            vpBar.style.backgroundColor = vpVal > 50.0 ? 'var(--accent-green)' : 'var(--accent-red)';
+            vpBar.style.backgroundColor = vpVal > 50.0 ? '#22c55e' : '#ef4444';
         }
 
         // Fetch loop
@@ -861,8 +955,9 @@
                 const data = await response.json();
                 cachedData = data; // Cache data
                 
-                // Update mode & time
+                // Update status indicator dot & time
                 const modeBadge = document.getElementById('bot-mode');
+                const statusDot = document.getElementById('status-dot-indicator');
                 
                 // Calculate latency to detect if process is alive (90s limit)
                 const lastTime = new Date(data.timestamp.replace(/-/g, '/'));
@@ -870,16 +965,19 @@
                 const diffSec = (now - lastTime) / 1000;
                 
                 if (diffSec > 90) {
-                    modeBadge.innerText = 'DEAD / OFFLINE';
+                    modeBadge.innerText = 'OFFLINE';
                     modeBadge.className = 'badge badge-dead';
+                    statusDot.className = 'status-dot offline';
+                    document.getElementById('last-update').innerText = `SYSTEM DEAD`;
                 } else {
                     modeBadge.innerText = data.mode.toUpperCase();
                     modeBadge.className = data.mode === 'live' ? 'badge badge-live' : 'badge badge-paper';
+                    statusDot.className = 'status-dot';
+                    document.getElementById('last-update').innerText = `SYNCED: ${data.timestamp}`;
                 }
-                document.getElementById('last-update').innerText = `마지막 동기화: ${data.timestamp}`;
                 
                 // Total Balance
-                document.getElementById('portfolio-balance').innerText = `${Math.floor(data.total_balance).toLocaleString()} 원`;
+                document.getElementById('portfolio-balance').innerText = `${Math.floor(data.total_balance).toLocaleString()} KRW`;
                 
                 // Update assets
                 updateAssetUI('xrp', data.xrp);
@@ -904,9 +1002,9 @@
                     const firstVal = formattedHistory[0].value;
                     const totalProfitPct = firstVal > 0 ? ((lastVal - firstVal) / firstVal) * 100 : 0;
                     
-                    document.getElementById('equity-update-time').innerText = `총 수익률: ${totalProfitPct >= 0 ? '+' : ''}${totalProfitPct.toFixed(2)}% | 시작일: ${formattedHistory[0].time}`;
+                    document.getElementById('equity-update-time').innerText = `RETURN: ${totalProfitPct >= 0 ? '+' : ''}${totalProfitPct.toFixed(2)}% | START: ${formattedHistory[0].time}`;
                 } else {
-                    document.getElementById('equity-update-time').innerText = "이력 데이터 없음";
+                    document.getElementById('equity-update-time').innerText = "NO EQUITY DATA FOUND";
                 }
                 
                 // Update Logs
@@ -919,22 +1017,22 @@
                         else if (line.includes('[EXIT: STOP LOSS]')) classNm = 'txt-red';
                         else if (line.includes('=== [')) classNm = 'txt-purple';
                         
-                        return `<div class="log-line ${classNm}">${line}</div>`;
+                        return `<div class="console-line ${classNm}">${line}</div>`;
                     }).join('');
                     
                     logDom.scrollTop = logDom.scrollHeight;
                 } else {
-                    logDom.innerHTML = '<div class="log-line">대기 중... (첫 스캔 대기)</div>';
+                    logDom.innerHTML = '<div class="console-line">WAITING FOR INCOMING TRACE EVENT STREAM...</div>';
                 }
                 
-                const errBanner = document.getElementById('error-banner');
-                if (errBanner) errBanner.remove();
             } catch (err) {
                 console.error("Dashboard update error: ", err);
-                document.getElementById('last-update').innerText = "동기화 오류...";
+                document.getElementById('last-update').innerText = "SYNC ERROR";
                 const modeBadge = document.getElementById('bot-mode');
-                modeBadge.innerText = 'DEAD / OFFLINE';
+                modeBadge.innerText = 'OFFLINE';
                 modeBadge.className = 'badge badge-dead';
+                const statusDot = document.getElementById('status-dot-indicator');
+                statusDot.className = 'status-dot offline';
             }
         }
 
