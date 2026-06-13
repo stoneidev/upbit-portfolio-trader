@@ -480,15 +480,16 @@ class UpbitAutoTrader:
 
 def save_merged_dashboard_data(trader_xrp, state_xrp, trader_eth, state_eth):
     """
-    Merges state dictionaries of XRP and ETH traders and writes to dashboard_data.json.
+    Merges state dictionaries of XRP and ETH traders, updates equity history, and writes to dashboard_data.json.
     """
     import json
+    import os
     
     # helper to format candles
     def format_candles(df_candles):
         candle_list = []
         if df_candles is not None:
-            for _, r in df_candles.tail(40).iterrows():
+            for _, r in df_candles.tail(200).iterrows():
                 candle_list.append({
                     "time": r.get("time"),
                     "open": float(r.get("open", 0)),
@@ -504,6 +505,49 @@ def save_merged_dashboard_data(trader_xrp, state_xrp, trader_eth, state_eth):
     
     total_balance = trader_xrp.balance + trader_eth.balance
     
+    # 2-year Daily Equity History Management
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    history_path = os.path.join(script_dir, "equity_history.json")
+    
+    history_data = []
+    if os.path.exists(history_path):
+        try:
+            with open(history_path, "r", encoding="utf-8") as hf:
+                history_data = json.load(hf)
+        except Exception as e:
+            print(f"Error loading equity_history.json: {e}")
+            history_data = []
+            
+    today_str = datetime.datetime.now().strftime("%Y-%m-%d")
+    
+    if not history_data:
+        # Initial point
+        history_data.append({
+            "time": today_str,
+            "value": total_balance
+        })
+    else:
+        last_entry = history_data[-1]
+        if last_entry.get("time") != today_str:
+            # Date changed, append new entry
+            history_data.append({
+                "time": today_str,
+                "value": total_balance
+            })
+            # Limit to 730 days (2 years)
+            if len(history_data) > 730:
+                history_data = history_data[-730:]
+        else:
+            # Overwrite today's last balance to keep it accurate
+            last_entry["value"] = total_balance
+            
+    # Save back to local JSON
+    try:
+        with open(history_path, "w", encoding="utf-8") as hf:
+            json.dump(history_data, hf, indent=4, ensure_ascii=False)
+    except Exception as e:
+        print(f"Error saving equity_history.json: {e}")
+
     # Unified output data
     data = {
         "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -542,6 +586,7 @@ def save_merged_dashboard_data(trader_xrp, state_xrp, trader_eth, state_eth):
             "peak_price": trader_eth.peak_price,
             "candles": format_candles(df_eth)
         },
+        "equity_history": history_data,
         "logs": trader_xrp.get_recent_logs(15)
     }
     

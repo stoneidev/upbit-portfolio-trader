@@ -589,6 +589,20 @@
             </div>
         </div>
 
+        <!-- 누적 자산 성장 곡선 -->
+        <div class="chart-section">
+            <div class="chart-header">
+                <h2 class="chart-title">누적 자산 성장 추이 (2개년 이력)</h2>
+                <div style="font-size:0.75rem; color:var(--text-secondary);" id="equity-update-time">대기 중...</div>
+            </div>
+            
+            <div class="chart-container-wrapper">
+                <div class="chart-wrapper">
+                    <div id="equity-chart" style="height: 320px;"></div>
+                </div>
+            </div>
+        </div>
+
         <!-- Logs -->
         <div class="log-section">
             <div class="log-title">
@@ -605,6 +619,7 @@
     <!-- Script to Handle Live Updates -->
     <script>
         let priceChart, candleSeries, zscoreChart, zscoreSeries;
+        let equityChart, equitySeries;
         let activeTab = 'xrp'; // Default tab
         let cachedData = null; // Store fetched data
         
@@ -666,7 +681,24 @@
                 lineWidth: 2,
             });
             
-            // Sync Time Scales
+            // 3. Equity History Area Chart
+            const equityDom = document.getElementById('equity-chart');
+            equityChart = LightweightCharts.createChart(equityDom, {
+                ...chartOptions,
+                timeScale: {
+                    borderColor: 'rgba(255, 255, 255, 0.08)',
+                    timeVisible: false, // Day scale only
+                },
+                crosshair: { mode: LightweightCharts.CrosshairMode.Normal }
+            });
+            equitySeries = equityChart.addAreaSeries({
+                lineColor: '#10b981',
+                topColor: 'rgba(16, 185, 129, 0.35)',
+                bottomColor: 'rgba(16, 185, 129, 0.0)',
+                lineWidth: 2,
+            });
+            
+            // Sync Time Scales (Price & Z-score)
             let isReflecting = false;
             priceChart.timeScale().subscribeVisibleTimeRangeChange((range) => {
                 if (isReflecting || !range) return;
@@ -685,6 +717,7 @@
             window.addEventListener('resize', () => {
                 priceChart.resize(priceDom.clientWidth, priceDom.clientHeight);
                 zscoreChart.resize(zscoreDom.clientWidth, zscoreDom.clientHeight);
+                equityChart.resize(equityDom.clientWidth, equityDom.clientHeight);
             });
         }
 
@@ -839,6 +872,27 @@
                 
                 // Update active chart tab
                 renderCharts(data[activeTab], activeTab === 'xrp' ? data.xrp.z_score : data.eth.z_score);
+                
+                // Render Equity History Area Chart
+                if (data.equity_history && data.equity_history.length > 0) {
+                    const formattedHistory = [];
+                    data.equity_history.forEach(h => {
+                        formattedHistory.push({
+                            time: h.time,
+                            value: parseFloat(h.value)
+                        });
+                    });
+                    formattedHistory.sort((a,b) => a.time.localeCompare(b.time));
+                    equitySeries.setData(formattedHistory);
+                    
+                    const lastVal = formattedHistory[formattedHistory.length - 1].value;
+                    const firstVal = formattedHistory[0].value;
+                    const totalProfitPct = firstVal > 0 ? ((lastVal - firstVal) / firstVal) * 100 : 0;
+                    
+                    document.getElementById('equity-update-time').innerText = `총 수익률: ${totalProfitPct >= 0 ? '+' : ''}${totalProfitPct.toFixed(2)}% | 시작일: ${formattedHistory[0].time}`;
+                } else {
+                    document.getElementById('equity-update-time').innerText = "이력 데이터 없음";
+                }
                 
                 // Update Logs
                 const logDom = document.getElementById('terminal-logs');
