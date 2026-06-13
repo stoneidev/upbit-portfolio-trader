@@ -51,27 +51,36 @@ class UpbitAutoTrader:
         self.market = market
         self.interval = "15" # 15 minutes
         self.fee_rate = 0.0005 # Upbit standard fee: 0.05%
-        
+        self.slippage_per_side = 0.0005  # Applied only to market-order exits (SL)
+
         # Simulated Wallet (Paper Mode)
         self.balance = initial_balance
         self.position_size = 0.0
         self.position_avg_price = 0.0
-        
+
         # Strategy parameters (Optimized dynamically by WFO)
         self.z_thresh = -1.2
         self.vol_power_thresh = 50.0  # Kept constant at 50% for volume power filter
         self.tp_pct = 0.5
         self.sl_pct = -2.0
-        
+
+        # Hybrid order model:
+        #   L1 entry, L2/L3 grids, trailing TP -> LIMIT (no slippage)
+        #   Stop-loss -> MARKET (slippage applied)
+        # Pending limit entry state
+        self.pending_entry_price = 0.0      # 0 means no pending entry
+        self.pending_entry_expires = 0.0    # epoch seconds
+        self.entry_timeout_sec = 60 * 60    # 1 hour to fill the L1 limit order
+
         # WFO Tracking
         self.last_opt_time = 0.0
-        
+
         # Grid parameters
         self.allocated_capital = 0.0
         self.level_1_price = 0.0
         self.level_2_filled = False
         self.level_3_filled = False
-        
+
         # Trailing stop parameters
         self.in_trade = False
         self.trailing_active = False
@@ -226,14 +235,17 @@ class UpbitAutoTrader:
         """
         Runs WFO sub-period simulation.
         Since historical candles don't have volume power, we optimize solely on Z-Score.
+        Hybrid order model: limit entry/grids/trailing (no slippage),
+        market stop-loss (slippage applied).
         """
         signals = df_sub["z_score"].values < z_thresh
         closes = df_sub["close"].values
         highs = df_sub["high"].values
         lows = df_sub["low"].values
-        
-        fee_rate = 0.0004
-        tp_activation_pct = 0.5
+
+        fee_rate = 0.0005          # Upbit fee, applied per side
+        slippage_per_side = 0.0005  # SL only (limit orders have no slippage)
+        tp_activation_pct = self.tp_pct
         trail_pct = 0.2
         sl_pct = -2.0
         
@@ -303,9 +315,14 @@ class UpbitAutoTrader:
                         exited = True
                         
                 if exited:
-                    profit_pct = (exit_price - avg_price) / avg_price * 100
+                    # Hybrid: TP=limit (no slip), SL=market (slip applied)
+                    if exit_price < avg_price:  # SL
+                        sell_price = exit_price * (1 - slippage_per_side)
+                    else:
+                        sell_price = exit_price
+                    profit_pct = (sell_price - avg_price) / avg_price * 100
                     ret = (total_weight * profit_pct) / 100.0
-                    fee = total_weight * fee_rate
+                    fee = total_weight * fee_rate * 2.0   # round-trip fee
                     balance *= (1 + ret - fee)
                     in_trade = False
                     
@@ -348,113 +365,134 @@ class UpbitAutoTrader:
         df_candles = self.fetch_upbit_candles()
         z_score, df = self.calculate_indicators(df_candles)
         vol_power = self.fetch_volume_power()
-        
+
         if z_score is None:
             self.write_log("Skipping trade cycle: Not enough candle data.")
             return None, 50.0, None
-            
+
         current_price = df["close"].iloc[-1]
-        
-        # Core Scalping State Machine
-        if not self.in_trade:
-            # Entry conditions
-            c1 = z_score < self.z_thresh
-            c2 = vol_power > self.vol_power_thresh
-            
-            if c1 and c2:
+
+        # Hybrid order model:
+        #   L1 entry / L2 / L3 / trailing TP -> LIMIT (no slippage)
+        #   Stop-loss -> MARKET (slippage applied on exit price)
+        # Pending limit entries time out after self.entry_timeout_sec.
+
+        # 1) Try to fill a pending L1 limit entry
+        if not self.in_trade and self.pending_entry_price > 0:
+            now = time.time()
+            if current_price <= self.pending_entry_price:
+                # Limit fill
+                fill_price = self.pending_entry_price
                 self.in_trade = True
                 self.allocated_capital = self.balance
-                self.level_1_price = current_price
-                self.position_size = (self.allocated_capital * 0.30) / current_price
-                self.position_avg_price = current_price
+                self.level_1_price = fill_price
+                self.position_size = (self.allocated_capital * 0.30) / fill_price
+                self.position_avg_price = fill_price
                 self.level_2_filled = False
                 self.level_3_filled = False
                 self.trailing_active = False
                 self.peak_price = 0.0
-                
-                msg_text = f"=== [ENTRY: LEVEL 1] Price: {current_price:,.0f}원 | Alloc Capital: {self.allocated_capital:,.0f}원 | Active Z-Thresh: {self.z_thresh} ==="
+                self.pending_entry_price = 0.0
+                self.pending_entry_expires = 0.0
+                msg_text = f"=== [ENTRY: LEVEL 1 LIMIT FILLED] Price: {fill_price:,.4f}원 | Alloc Capital: {self.allocated_capital:,.0f}원 | Active Z-Thresh: {self.z_thresh} ==="
                 self.write_log(msg_text)
-                send_telegram_message(f"🚀 [{self.market}] 1차 매수 진입 (Level 1)\n- 진입가: {current_price:,.0f}원\n- 할당 자금: {self.allocated_capital:,.0f}원\n- Z-Thresh: {self.z_thresh}")
-        else:
-            # Manage grids
+                send_telegram_message(f"🚀 [{self.market}] 1차 매수 체결 (Limit)\n- 진입가: {fill_price:,.4f}원\n- 할당 자금: {self.allocated_capital:,.0f}원\n- Z-Thresh: {self.z_thresh}")
+            elif now >= self.pending_entry_expires:
+                # Cancel timed-out limit
+                self.write_log(f"=== [ENTRY: LEVEL 1 LIMIT CANCELLED] Limit {self.pending_entry_price:,.4f}원 not filled within {self.entry_timeout_sec//60}분 ===")
+                self.pending_entry_price = 0.0
+                self.pending_entry_expires = 0.0
+
+        # 2) Place a new pending limit entry on fresh signal
+        if not self.in_trade and self.pending_entry_price == 0:
+            c1 = z_score < self.z_thresh
+            c2 = vol_power > self.vol_power_thresh
+            if c1 and c2:
+                self.pending_entry_price = current_price
+                self.pending_entry_expires = time.time() + self.entry_timeout_sec
+                msg_text = f"=== [ENTRY: LIMIT QUEUED] Price: {current_price:,.4f}원 | Z={z_score:.2f} | VP={vol_power:.1f}% | Expires: {self.entry_timeout_sec//60}분 ==="
+                self.write_log(msg_text)
+                send_telegram_message(f"📥 [{self.market}] 1차 매수 지정가 등록\n- 지정가: {current_price:,.4f}원\n- Z-Score: {z_score:.2f}\n- 체결강도: {vol_power:.1f}%")
+
+        # 3) Manage open trade (grids + exits)
+        if self.in_trade:
             level_2_price = self.level_1_price * 0.990
             level_3_price = self.level_1_price * 0.980
-            
+
             if not self.level_2_filled and current_price <= level_2_price:
                 buy_amount = self.allocated_capital * 0.30
                 new_tokens = buy_amount / level_2_price
                 self.position_avg_price = (self.position_size * self.position_avg_price + buy_amount) / (self.position_size + new_tokens)
                 self.position_size += new_tokens
                 self.level_2_filled = True
-                msg_text = f"=== [GRID FILL: LEVEL 2] Price: {level_2_price:,.0f}원 | New Avg: {self.position_avg_price:,.0f}원 ==="
+                msg_text = f"=== [GRID FILL: LEVEL 2 LIMIT] Price: {level_2_price:,.4f}원 | New Avg: {self.position_avg_price:,.4f}원 ==="
                 self.write_log(msg_text)
-                send_telegram_message(f"➕ [{self.market}] 2차 분할매수 체결 (Level 2)\n- 매수가: {level_2_price:,.0f}원\n- 새로운 평단가: {self.position_avg_price:,.0f}원")
-                
+                send_telegram_message(f"➕ [{self.market}] 2차 분할매수 체결 (Level 2)\n- 매수가: {level_2_price:,.4f}원\n- 새로운 평단가: {self.position_avg_price:,.4f}원")
+
             if not self.level_3_filled and current_price <= level_3_price:
                 buy_amount = self.allocated_capital * 0.40
                 new_tokens = buy_amount / level_3_price
                 self.position_avg_price = (self.position_size * self.position_avg_price + buy_amount) / (self.position_size + new_tokens)
                 self.position_size += new_tokens
                 self.level_3_filled = True
-                msg_text = f"=== [GRID FILL: LEVEL 3] Price: {level_3_price:,.0f}원 | New Avg: {self.position_avg_price:,.0f}원 ==="
+                msg_text = f"=== [GRID FILL: LEVEL 3 LIMIT] Price: {level_3_price:,.4f}원 | New Avg: {self.position_avg_price:,.4f}원 ==="
                 self.write_log(msg_text)
-                send_telegram_message(f"🔥 [{self.market}] 3차 분할매수 체결 (Level 3 - 최종)\n- 매수가: {level_3_price:,.0f}원\n- 새로운 평단가: {self.position_avg_price:,.0f}원")
-                
-            # Exit calculations
+                send_telegram_message(f"🔥 [{self.market}] 3차 분할매수 체결 (Level 3 - 최종)\n- 매수가: {level_3_price:,.4f}원\n- 새로운 평단가: {self.position_avg_price:,.4f}원")
+
             sl_price = self.position_avg_price * (1 + self.sl_pct/100.0)
             tp_activation_price = self.position_avg_price * (1 + self.tp_pct/100.0)
-            
-            # Check Trailing Activation
+
             if not self.trailing_active:
                 if current_price >= tp_activation_price:
                     self.trailing_active = True
                     self.peak_price = max(current_price, tp_activation_price)
-                    self.write_log(f"=== [TRAILING ACTIVATED] Peak: {self.peak_price:,.0f}원 ===")
+                    self.write_log(f"=== [TRAILING ACTIVATED] Peak: {self.peak_price:,.4f}원 ===")
             else:
                 self.peak_price = max(self.peak_price, current_price)
-                
-            # Exits Check
+
             if self.trailing_active:
-                stop_price = self.peak_price * (1 - 0.2/100.0) # 0.2% trailing width
+                stop_price = self.peak_price * (1 - 0.2/100.0)
                 activation_floor = self.position_avg_price * (1 + (self.tp_pct - 0.2)/100.0)
                 stop_price = max(stop_price, activation_floor)
-                
+
                 if current_price <= stop_price:
-                    # Trailing stop triggered
+                    # Trailing TP exit -> LIMIT (no slippage)
                     total_weight = 0.3
                     if self.level_2_filled: total_weight += 0.3
                     if self.level_3_filled: total_weight += 0.4
-                    
-                    gross_value = self.position_size * stop_price
-                    fee = self.allocated_capital * total_weight * self.fee_rate
+
+                    sell_price = stop_price  # limit fill, no slip
+                    gross_value = self.position_size * sell_price
+                    fee = self.allocated_capital * total_weight * self.fee_rate * 2.0  # round-trip
                     net_return_amount = gross_value - fee
-                    
+
                     self.balance += (self.allocated_capital * (1 - total_weight)) + net_return_amount - self.allocated_capital
-                    
-                    profit_pct = (stop_price - self.position_avg_price) / self.position_avg_price * 100
-                    msg_text = f"=== [EXIT: TRAILING STOP] Price: {stop_price:,.0f}원 | Profit: {profit_pct:+.2f}% | Balance: {self.balance:,.0f}원 ==="
+
+                    profit_pct = (sell_price - self.position_avg_price) / self.position_avg_price * 100
+                    msg_text = f"=== [EXIT: TRAILING STOP LIMIT] Price: {sell_price:,.4f}원 | Profit: {profit_pct:+.2f}% | Balance: {self.balance:,.0f}원 ==="
                     self.write_log(msg_text)
-                    send_telegram_message(f"💰 [{self.market}] 익절 청산 완료 (Trailing Stop)\n- 청산가: {stop_price:,.0f}원\n- 거래 수익률: {profit_pct:+.2f}%\n- 잔고: {self.balance:,.0f}원")
+                    send_telegram_message(f"💰 [{self.market}] 익절 청산 완료 (Trailing/Limit)\n- 청산가: {sell_price:,.4f}원\n- 거래 수익률: {profit_pct:+.2f}%\n- 잔고: {self.balance:,.0f}원")
                     self.reset_trade_state()
             else:
                 if current_price <= sl_price:
-                    # Stop loss triggered
+                    # Stop loss -> MARKET (slippage applied)
                     total_weight = 0.3
                     if self.level_2_filled: total_weight += 0.3
                     if self.level_3_filled: total_weight += 0.4
-                    
-                    gross_value = self.position_size * sl_price
-                    fee = self.allocated_capital * total_weight * self.fee_rate
+
+                    sell_price = sl_price * (1 - self.slippage_per_side)
+                    gross_value = self.position_size * sell_price
+                    fee = self.allocated_capital * total_weight * self.fee_rate * 2.0  # round-trip
                     net_return_amount = gross_value - fee
-                    
+
                     self.balance += (self.allocated_capital * (1 - total_weight)) + net_return_amount - self.allocated_capital
-                    
-                    profit_pct = (sl_price - self.position_avg_price) / self.position_avg_price * 100
-                    msg_text = f"=== [EXIT: STOP LOSS] Price: {sl_price:,.0f}원 | Profit: {profit_pct:+.2f}% | Balance: {self.balance:,.0f}원 ==="
+
+                    profit_pct = (sell_price - self.position_avg_price) / self.position_avg_price * 100
+                    msg_text = f"=== [EXIT: STOP LOSS MARKET] Price: {sell_price:,.4f}원 | Profit: {profit_pct:+.2f}% | Balance: {self.balance:,.0f}원 ==="
                     self.write_log(msg_text)
-                    send_telegram_message(f"🚨 [{self.market}] 손절 청산 완료 (Stop Loss)\n- 청산가: {sl_price:,.0f}원\n- 거래 수익률: {profit_pct:+.2f}%\n- 잔고: {self.balance:,.0f}원")
+                    send_telegram_message(f"🚨 [{self.market}] 손절 청산 완료 (Stop Loss/Market)\n- 청산가: {sell_price:,.4f}원\n- 거래 수익률: {profit_pct:+.2f}%\n- 잔고: {self.balance:,.0f}원")
                     self.reset_trade_state()
-                    
+
         return current_price, z_score, vol_power, df
 
     def reset_trade_state(self):
@@ -467,6 +505,8 @@ class UpbitAutoTrader:
         self.level_3_filled = False
         self.trailing_active = False
         self.peak_price = 0.0
+        self.pending_entry_price = 0.0
+        self.pending_entry_expires = 0.0
 
     def get_recent_logs(self, limit=15):
         if not os.path.exists(self.log_file):
@@ -569,6 +609,9 @@ def save_merged_dashboard_data(trader_xrp, state_xrp, trader_eth, state_eth):
             "peak_price": trader_xrp.peak_price,
             "z_thresh": trader_xrp.z_thresh,
             "vol_power_thresh": trader_xrp.vol_power_thresh,
+            "pending_entry_price": trader_xrp.pending_entry_price,
+            "pending_entry_expires": trader_xrp.pending_entry_expires,
+            "tp_pct": trader_xrp.tp_pct,
             "candles": format_candles(df_xrp)
         },
         "eth": {
@@ -587,6 +630,9 @@ def save_merged_dashboard_data(trader_xrp, state_xrp, trader_eth, state_eth):
             "peak_price": trader_eth.peak_price,
             "z_thresh": trader_eth.z_thresh,
             "vol_power_thresh": trader_eth.vol_power_thresh,
+            "pending_entry_price": trader_eth.pending_entry_price,
+            "pending_entry_expires": trader_eth.pending_entry_expires,
+            "tp_pct": trader_eth.tp_pct,
             "candles": format_candles(df_eth)
         },
         "equity_history": history_data,
