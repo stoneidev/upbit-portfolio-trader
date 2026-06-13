@@ -72,6 +72,13 @@ class UpbitAutoTrader:
         self.pending_entry_expires = 0.0    # epoch seconds
         self.entry_timeout_sec = 60 * 60    # 1 hour to fill the L1 limit order
 
+        # L3 time cutoff: if L3 grid was filled and price hasn't recovered to
+        # avg * (1 + l3_bep_thresh_pct/100) within l3_cutoff_sec, force close.
+        # Caps the worst-case drawdown of full-grid trades.
+        self.l3_fill_time = 0.0
+        self.l3_cutoff_sec = 16 * 15 * 60       # 16 × 15-min bars = 4 hours
+        self.l3_bep_thresh_pct = -0.2           # accept up to 0.2% loss to exit
+
         # WFO Tracking
         self.last_opt_time = 0.0
 
@@ -248,7 +255,9 @@ class UpbitAutoTrader:
         tp_activation_pct = self.tp_pct
         trail_pct = 0.2
         sl_pct = -2.0
-        
+        l3_cutoff_bars = self.l3_cutoff_sec // (15 * 60)  # 16 bars = 4h
+        l3_bep_thresh_pct = self.l3_bep_thresh_pct
+
         in_trade = False
         level_1_price = 0.0
         level_2_filled = False
@@ -256,7 +265,8 @@ class UpbitAutoTrader:
         trailing_active = False
         peak_price = 0.0
         balance = 500000.0
-        
+        l3_fill_idx = -1
+
         for i in range(len(df_sub)):
             if not in_trade:
                 if signals[i]:
@@ -266,18 +276,21 @@ class UpbitAutoTrader:
                     level_3_filled = False
                     trailing_active = False
                     peak_price = 0.0
+                    l3_fill_idx = -1
             else:
                 level_2_price = level_1_price * 0.990
                 level_3_price = level_1_price * 0.980
-                
+
                 curr_low = lows[i]
                 curr_high = highs[i]
-                
+                curr_close = closes[i]
+
                 if not level_2_filled and curr_low <= level_2_price:
                     level_2_filled = True
                 if not level_3_filled and curr_low <= level_3_price:
                     level_3_filled = True
-                    
+                    l3_fill_idx = i
+
                 if level_3_filled:
                     avg_price = (level_1_price * 0.3 + level_2_price * 0.3 + level_3_price * 0.4)
                     total_weight = 1.0
@@ -287,36 +300,47 @@ class UpbitAutoTrader:
                 else:
                     avg_price = level_1_price
                     total_weight = 0.3
-                    
+
                 sl_price = avg_price * (1 + sl_pct/100.0)
                 tp_activation_price = avg_price * (1 + tp_activation_pct/100.0)
-                
+
                 if not trailing_active:
                     if curr_high >= tp_activation_price:
                         trailing_active = True
                         peak_price = max(curr_high, tp_activation_price)
                 else:
                     peak_price = max(peak_price, curr_high)
-                    
+
                 exited = False
                 exit_price = 0.0
-                
-                if trailing_active:
+                exit_is_market = False
+
+                # L3 time cutoff (only after L3 fill, before trailing)
+                if (level_3_filled and not trailing_active and l3_fill_idx >= 0
+                        and (i - l3_fill_idx) >= l3_cutoff_bars):
+                    bep_target = avg_price * (1 + l3_bep_thresh_pct / 100.0)
+                    if curr_close >= bep_target:
+                        exit_price = curr_close
+                        exited = True
+                        exit_is_market = True
+
+                if not exited and trailing_active:
                     stop_price = peak_price * (1 - trail_pct/100.0)
                     activation_floor = avg_price * (1 + (tp_activation_pct - trail_pct)/100.0)
                     stop_price = max(stop_price, activation_floor)
-                    
+
                     if curr_low <= stop_price:
                         exit_price = stop_price
                         exited = True
-                else:
+                elif not exited:
                     if curr_low <= sl_price:
                         exit_price = sl_price
                         exited = True
+                        exit_is_market = True
                         
                 if exited:
-                    # Hybrid: TP=limit (no slip), SL=market (slip applied)
-                    if exit_price < avg_price:  # SL
+                    # Hybrid: TP=limit (no slip), SL/L3-cutoff=market (slip applied)
+                    if exit_is_market:
                         sell_price = exit_price * (1 - slippage_per_side)
                     else:
                         sell_price = exit_price
@@ -325,6 +349,7 @@ class UpbitAutoTrader:
                     fee = total_weight * fee_rate * 2.0   # round-trip fee
                     balance *= (1 + ret - fee)
                     in_trade = False
+                    l3_fill_idx = -1
                     
         return (balance - 500000.0) / 500000.0 * 100
 
@@ -435,12 +460,35 @@ class UpbitAutoTrader:
                 self.position_avg_price = (self.position_size * self.position_avg_price + buy_amount) / (self.position_size + new_tokens)
                 self.position_size += new_tokens
                 self.level_3_filled = True
+                self.l3_fill_time = time.time()
                 msg_text = f"=== [GRID FILL: LEVEL 3 LIMIT] Price: {level_3_price:,.4f}원 | New Avg: {self.position_avg_price:,.4f}원 ==="
                 self.write_log(msg_text)
                 send_telegram_message(f"🔥 [{self.market}] 3차 분할매수 체결 (Level 3 - 최종)\n- 매수가: {level_3_price:,.4f}원\n- 새로운 평단가: {self.position_avg_price:,.4f}원")
 
             sl_price = self.position_avg_price * (1 + self.sl_pct/100.0)
             tp_activation_price = self.position_avg_price * (1 + self.tp_pct/100.0)
+
+            # L3 time cutoff: applies only after L3 fill, before trailing activation.
+            # If price has recovered above (avg + bep_thresh) after the timer expires,
+            # force-close at current_price (market) to cap worst-case drawdown.
+            if (self.level_3_filled and not self.trailing_active
+                    and self.l3_fill_time > 0
+                    and time.time() - self.l3_fill_time >= self.l3_cutoff_sec):
+                bep_target = self.position_avg_price * (1 + self.l3_bep_thresh_pct / 100.0)
+                if current_price >= bep_target:
+                    total_weight = 0.3 + 0.3 + 0.4   # full grid by definition
+                    sell_price = current_price * (1 - self.slippage_per_side)
+                    gross_value = self.position_size * sell_price
+                    fee = self.allocated_capital * total_weight * self.fee_rate * 2.0
+                    net_return_amount = gross_value - fee
+                    self.balance += (self.allocated_capital * (1 - total_weight)) + net_return_amount - self.allocated_capital
+                    profit_pct = (sell_price - self.position_avg_price) / self.position_avg_price * 100
+                    elapsed_min = (time.time() - self.l3_fill_time) / 60
+                    msg_text = f"=== [EXIT: L3 CUTOFF] Price: {sell_price:,.4f}원 | Profit: {profit_pct:+.2f}% | Held: {elapsed_min:.0f}분 | Balance: {self.balance:,.0f}원 ==="
+                    self.write_log(msg_text)
+                    send_telegram_message(f"⏱ [{self.market}] L3 시간 컷오프 청산 (BEP 회복)\n- 청산가: {sell_price:,.4f}원\n- 거래 수익률: {profit_pct:+.2f}%\n- L3 보유: {elapsed_min:.0f}분\n- 잔고: {self.balance:,.0f}원")
+                    self.reset_trade_state()
+                    return current_price, z_score, vol_power, df
 
             if not self.trailing_active:
                 if current_price >= tp_activation_price:
@@ -507,6 +555,7 @@ class UpbitAutoTrader:
         self.peak_price = 0.0
         self.pending_entry_price = 0.0
         self.pending_entry_expires = 0.0
+        self.l3_fill_time = 0.0
 
     def get_recent_logs(self, limit=15):
         if not os.path.exists(self.log_file):
@@ -611,6 +660,7 @@ def save_merged_dashboard_data(trader_xrp, state_xrp, trader_eth, state_eth):
             "vol_power_thresh": trader_xrp.vol_power_thresh,
             "pending_entry_price": trader_xrp.pending_entry_price,
             "pending_entry_expires": trader_xrp.pending_entry_expires,
+            "l3_fill_time": trader_xrp.l3_fill_time,
             "tp_pct": trader_xrp.tp_pct,
             "candles": format_candles(df_xrp)
         },
@@ -632,6 +682,7 @@ def save_merged_dashboard_data(trader_xrp, state_xrp, trader_eth, state_eth):
             "vol_power_thresh": trader_eth.vol_power_thresh,
             "pending_entry_price": trader_eth.pending_entry_price,
             "pending_entry_expires": trader_eth.pending_entry_expires,
+            "l3_fill_time": trader_eth.l3_fill_time,
             "tp_pct": trader_eth.tp_pct,
             "candles": format_candles(df_eth)
         },
