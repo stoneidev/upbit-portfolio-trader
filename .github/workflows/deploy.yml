@@ -11,15 +11,26 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Stop Existing Bot
+      - name: Stop Existing Services
         run: |
           echo "Stopping existing trader bot..."
           pkill -9 -f upbit_portfolio_trader.py || true
+          echo "Stopping existing web server..."
+          pkill -9 -f "python3 -m http.server" || true
           sleep 2
 
-      - name: Start Trader Bot
+      - name: Copy Configuration
+        run: |
+          echo "Copying config.json..."
+          cp /home/stoni/Projects/AI/config.json ./config.json
+
+      - name: Start Services
         run: |
           echo "Starting new trader bot in background..."
           nohup python3 -u upbit_portfolio_trader.py > upbit_portfolio_log.txt 2>&1 < /dev/null &
+          echo "Starting new web server on port 8000..."
+          nohup python3 -m http.server 8000 > web_server_log.txt 2>&1 < /dev/null &
           sleep 3
-          ps aux | grep upbit_portfolio_trader.py
+          echo "Verifying running processes..."
+          ps aux | grep -e "upbit_portfolio_trader.py" -e "http.server" | grep -v grep
+
