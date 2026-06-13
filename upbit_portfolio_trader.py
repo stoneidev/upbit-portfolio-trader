@@ -88,7 +88,7 @@ class UpbitAutoTrader:
         with open(self.log_file, "a", encoding="utf-8") as f:
             f.write(log_line)
 
-    def fetch_upbit_candles(self, count=200):
+    def fetch_upbit_candles(self, count=100):
         """
         Fetches the latest count candles from Upbit for self.market.
         """
@@ -489,7 +489,7 @@ def save_merged_dashboard_data(trader_xrp, state_xrp, trader_eth, state_eth):
     def format_candles(df_candles):
         candle_list = []
         if df_candles is not None:
-            for _, r in df_candles.tail(200).iterrows():
+            for _, r in df_candles.tail(100).iterrows():
                 candle_list.append({
                     "time": r.get("time"),
                     "open": float(r.get("open", 0)),
