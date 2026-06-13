@@ -1,0 +1,7 @@
+name = "upbit-portfolio-worker"
+main = "index.js"
+compatibility_date = "2023-01-01"
+
+[[kv_namespaces]]
+binding = "PORTFOLIO_KV"
+id = "1cf0a522a5ec4bf6b3311954566d23bf"

@@ -1,0 +1,2161 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Orchestrator-Worker Pattern: Architecture Deep Dive & Implementation Strategy</title>
+    <style>
+        :root {
+            --primary: #1a1a2e;
+            --secondary: #16213e;
+            --accent: #0f3460;
+            --highlight: #e94560;
+            --text: #eaeaea;
+            --text-muted: #a0a0b0;
+            --surface: #1e1e30;
+            --border: #2a2a4a;
+            --code-bg: #0d0d1a;
+            --success: #4caf50;
+            --warning: #ff9800;
+            --info: #2196f3;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--primary);
+            color: var(--text);
+            line-height: 1.8;
+            font-size: 16px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        header {
+            text-align: center;
+            padding: 4rem 2rem;
+            background: linear-gradient(135deg, var(--secondary) 0%, var(--accent) 100%);
+            border-bottom: 3px solid var(--highlight);
+            margin-bottom: 3rem;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(90deg, #fff, #e94560);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        header .subtitle {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        header .meta {
+            margin-top: 1.5rem;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .toc {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .toc h2 {
+            font-size: 1.3rem;
+            margin-bottom: 1rem;
+            color: var(--highlight);
+        }
+
+        .toc ol {
+            padding-left: 1.5rem;
+        }
+
+        .toc li {
+            margin: 0.5rem 0;
+        }
+
+        .toc a {
+            color: var(--info);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .toc a:hover {
+            color: var(--highlight);
+        }
+
+        section {
+            margin-bottom: 4rem;
+        }
+
+        h2 {
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--highlight);
+            color: #fff;
+        }
+
+        h3 {
+            font-size: 1.5rem;
+            margin: 2rem 0 1rem;
+            color: var(--info);
+        }
+
+        h4 {
+            font-size: 1.2rem;
+            margin: 1.5rem 0 0.8rem;
+            color: var(--text);
+        }
+
+        p {
+            margin-bottom: 1rem;
+            color: var(--text);
+        }
+
+        .callout {
+            background: var(--surface);
+            border-left: 4px solid var(--info);
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .callout.warning {
+            border-left-color: var(--warning);
+        }
+
+        .callout.critical {
+            border-left-color: var(--highlight);
+        }
+
+        .callout.success {
+            border-left-color: var(--success);
+        }
+
+        .callout-title {
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .callout.warning .callout-title { color: var(--warning); }
+        .callout.critical .callout-title { color: var(--highlight); }
+        .callout.success .callout-title { color: var(--success); }
+        .callout .callout-title { color: var(--info); }
+
+        code {
+            background: var(--code-bg);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 0.9em;
+            color: #e06c75;
+        }
+
+        pre {
+            background: var(--code-bg);
+            padding: 1.5rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1.5rem 0;
+            border: 1px solid var(--border);
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+            color: #abb2bf;
+            font-size: 0.85rem;
+            line-height: 1.6;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            font-size: 0.95rem;
+        }
+
+        th, td {
+            padding: 0.8rem 1rem;
+            text-align: left;
+            border: 1px solid var(--border);
+        }
+
+        th {
+            background: var(--accent);
+            font-weight: 600;
+            color: #fff;
+        }
+
+        tr:nth-child(even) {
+            background: var(--surface);
+        }
+
+        svg {
+            border-radius: 8px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .badge-aws { background: #ff9900; color: #000; }
+        .badge-pattern { background: var(--accent); color: var(--info); }
+        .badge-metric { background: #1b5e20; color: #a5d6a7; }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .comparison-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            transition: border-color 0.2s;
+        }
+
+        .comparison-card:hover {
+            border-color: var(--info);
+        }
+
+        .comparison-card h4 {
+            margin-top: 0;
+            color: var(--info);
+        }
+
+        .impl-step {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            position: relative;
+            padding-left: 3.5rem;
+        }
+
+        .impl-step::before {
+            content: attr(data-step);
+            position: absolute;
+            left: 1rem;
+            top: 1.5rem;
+            width: 2rem;
+            height: 2rem;
+            background: var(--highlight);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .flow-arrow {
+            text-align: center;
+            font-size: 1.5rem;
+            color: var(--highlight);
+            margin: 0.5rem 0;
+        }
+
+        ul, ol {
+            padding-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        li {
+            margin: 0.4rem 0;
+        }
+
+        .highlight-box {
+            background: linear-gradient(135deg, rgba(233,69,96,0.1), rgba(15,52,96,0.3));
+            border: 1px solid var(--highlight);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .section-divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--border), transparent);
+            margin: 3rem 0;
+        }
+
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            header h1 { font-size: 1.8rem; }
+            h2 { font-size: 1.5rem; }
+            .comparison-grid { grid-template-columns: 1fr; }
+            pre { font-size: 0.75rem; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>AI Orchestrator-Worker Pattern</h1>
+    <p class="subtitle">
+        Multi-Agent 아키텍처의 설계 원칙, 정량적 효과 분석, 그리고 AWS 기반 Production 구현 전략
+    </p>
+    <p class="meta">
+        Based on: Anthropic Engineering, Andrew Ng (DeepLearning.AI), LangChain/LangGraph, MetaGPT (arXiv:2308.00352)<br>
+        Document Purpose: Implementation Architecture Reference
+    </p>
+</header>
+
+<div class="container">
+
+    <!-- Table of Contents -->
+    <nav class="toc">
+        <h2>Contents</h2>
+        <ol>
+            <li><a href="#context">Pattern Context: Agentic Systems의 위치 선정</a></li>
+            <li><a href="#theory">이론적 기반: 4대 핵심 자료 분석</a></li>
+            <li><a href="#effectiveness">정량적 효과 분석</a></li>
+            <li><a href="#architecture">구현 아키텍처 설계</a></li>
+            <li><a href="#aws-impl">AWS 기반 구현 전략</a></li>
+            <li><a href="#tradeoffs">아키텍처 Trade-offs & Decision Matrix</a></li>
+            <li><a href="#production">Production Readiness Checklist</a></li>
+        </ol>
+    </nav>
+
+    <!-- Section 1: Context -->
+    <section id="context">
+        <h2>1. Pattern Context: Agentic Systems의 위치 선정</h2>
+
+        <h3>1.1 Workflow vs Agent: 근본적 구분</h3>
+        <p>
+            Anthropic은 "agentic system"을 두 범주로 구분합니다. 이 구분은 구현 아키텍처 선택의 첫 번째 분기점입니다.
+        </p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>구분</th>
+                    <th>Workflow</th>
+                    <th>Agent</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>정의</strong></td>
+                    <td>LLM과 도구가 미리 정의된 코드 경로로 오케스트레이션</td>
+                    <td>LLM이 자체적으로 프로세스를 동적 제어</td>
+                </tr>
+                <tr>
+                    <td><strong>제어 흐름</strong></td>
+                    <td>Deterministic (코드가 결정)</td>
+                    <td>Non-deterministic (모델이 결정)</td>
+                </tr>
+                <tr>
+                    <td><strong>예측 가능성</strong></td>
+                    <td>높음</td>
+                    <td>낮음</td>
+                </tr>
+                <tr>
+                    <td><strong>적합 시나리오</strong></td>
+                    <td>반복적, 구조화된 작업</td>
+                    <td>개방형, 탐색적 작업</td>
+                </tr>
+                <tr>
+                    <td><strong>AWS 매핑</strong></td>
+                    <td>Step Functions + Bedrock</td>
+                    <td>Bedrock Agents / Custom Agent Loop</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="callout">
+            <div class="callout-title">Architecture Decision</div>
+            <p>
+                Orchestrator-Worker는 이 스펙트럼의 중간에 위치합니다. Orchestrator 자체는 Agent적(동적 판단)이지만,
+                Worker들은 Workflow적(정해진 역할 수행)입니다. 이 하이브리드 특성이 실용성의 핵심입니다.
+            </p>
+        </div>
+
+        <h3>1.2 Anthropic이 정의한 5대 Workflow Pattern의 진화 경로</h3>
+
+        <svg viewBox="0 0 900 340" xmlns="http://www.w3.org/2000/svg" style="width:100%; max-width:900px; margin:2rem auto; display:block;">
+          <defs>
+            <marker id="arrowRight" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#e94560"/></marker>
+            <marker id="arrowLeft" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto"><polygon points="10 0, 0 3.5, 10 7" fill="#e94560"/></marker>
+            <linearGradient id="spectrumGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" style="stop-color:#2196f3;stop-opacity:0.3"/>
+              <stop offset="100%" style="stop-color:#e94560;stop-opacity:0.3"/>
+            </linearGradient>
+          </defs>
+          <!-- Background -->
+          <rect x="0" y="0" width="900" height="340" rx="8" fill="#0d0d1a" stroke="#2a2a4a"/>
+          <!-- Title -->
+          <text x="450" y="35" text-anchor="middle" fill="#eaeaea" font-size="14" font-weight="bold" font-family="Inter, sans-serif">COMPLEXITY &amp; AUTONOMY SPECTRUM</text>
+          <!-- Spectrum bar -->
+          <rect x="60" y="55" width="780" height="8" rx="4" fill="url(#spectrumGrad)"/>
+          <text x="60" y="80" fill="#a0a0b0" font-size="11" font-family="Inter, sans-serif">Simple</text>
+          <text x="840" y="80" text-anchor="end" fill="#a0a0b0" font-size="11" font-family="Inter, sans-serif">Complex</text>
+          <!-- Pattern boxes -->
+          <rect x="60" y="100" width="150" height="44" rx="6" fill="#0f3460" stroke="#2196f3" stroke-width="1.5"/>
+          <text x="135" y="126" text-anchor="middle" fill="#eaeaea" font-size="12" font-family="Inter, sans-serif">Prompt Chaining</text>
+          <rect x="250" y="100" width="150" height="44" rx="6" fill="#0f3460" stroke="#2196f3" stroke-width="1.5"/>
+          <text x="325" y="126" text-anchor="middle" fill="#eaeaea" font-size="12" font-family="Inter, sans-serif">Routing</text>
+          <rect x="440" y="100" width="150" height="44" rx="6" fill="#0f3460" stroke="#2196f3" stroke-width="1.5"/>
+          <text x="515" y="126" text-anchor="middle" fill="#eaeaea" font-size="12" font-family="Inter, sans-serif">Parallelization</text>
+          <rect x="630" y="100" width="200" height="44" rx="6" fill="#1e1e30" stroke="#e94560" stroke-width="2"/>
+          <text x="730" y="126" text-anchor="middle" fill="#e94560" font-size="12" font-weight="bold" font-family="Inter, sans-serif">Orchestrator-Worker</text>
+          <!-- Arrows between boxes -->
+          <line x1="210" y1="122" x2="250" y2="122" stroke="#61afef" stroke-width="1.5" marker-end="url(#arrowRight)"/>
+          <line x1="400" y1="122" x2="440" y2="122" stroke="#61afef" stroke-width="1.5" marker-end="url(#arrowRight)"/>
+          <line x1="590" y1="122" x2="630" y2="122" stroke="#61afef" stroke-width="1.5" marker-end="url(#arrowRight)"/>
+          <!-- Sub-labels -->
+          <text x="135" y="165" text-anchor="middle" fill="#a0a0b0" font-size="10" font-family="Inter, sans-serif">Sequential Pipeline</text>
+          <text x="325" y="165" text-anchor="middle" fill="#a0a0b0" font-size="10" font-family="Inter, sans-serif">Classification &amp; Dispatch</text>
+          <text x="515" y="165" text-anchor="middle" fill="#a0a0b0" font-size="10" font-family="Inter, sans-serif">Concurrent Execution</text>
+          <text x="730" y="165" text-anchor="middle" fill="#a0a0b0" font-size="10" font-family="Inter, sans-serif">Dynamic Decomposition</text>
+          <!-- Evaluator-Optimizer -->
+          <rect x="630" y="200" width="200" height="44" rx="6" fill="#0f3460" stroke="#2196f3" stroke-width="1.5"/>
+          <text x="730" y="226" text-anchor="middle" fill="#eaeaea" font-size="12" font-family="Inter, sans-serif">Evaluator-Optimizer</text>
+          <text x="730" y="265" text-anchor="middle" fill="#a0a0b0" font-size="10" font-family="Inter, sans-serif">Iterative Refinement</text>
+          <!-- Bottom spectrum labels -->
+          <line x1="100" y1="310" x2="800" y2="310" stroke="#e94560" stroke-width="1.5" marker-start="url(#arrowLeft)" marker-end="url(#arrowRight)"/>
+          <text x="100" y="330" fill="#a0a0b0" font-size="11" font-family="Inter, sans-serif">Deterministic</text>
+          <text x="800" y="330" text-anchor="end" fill="#a0a0b0" font-size="11" font-family="Inter, sans-serif">Non-deterministic</text>
+        </svg>
+
+        <h3>1.3 Orchestrator-Worker vs Parallelization: 핵심 차이</h3>
+
+        <p>이 두 패턴은 겉보기에 유사하지만, 아키텍처적으로 근본적인 차이가 있습니다:</p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>관점</th>
+                    <th>Parallelization</th>
+                    <th>Orchestrator-Worker</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Task Decomposition</strong></td>
+                    <td>Compile-time (코드에 하드코딩)</td>
+                    <td>Runtime (LLM이 입력 분석 후 결정)</td>
+                </tr>
+                <tr>
+                    <td><strong>Worker 수</strong></td>
+                    <td>고정 (N개 병렬)</td>
+                    <td>가변 (입력에 따라 1~N)</td>
+                </tr>
+                <tr>
+                    <td><strong>Worker 선택</strong></td>
+                    <td>미리 결정됨</td>
+                    <td>Orchestrator가 동적 선택</td>
+                </tr>
+                <tr>
+                    <td><strong>결과 통합</strong></td>
+                    <td>프로그래밍 로직 (concat, vote 등)</td>
+                    <td>LLM이 synthesis</td>
+                </tr>
+                <tr>
+                    <td><strong>비용 예측</strong></td>
+                    <td>Deterministic (고정 N회 호출)</td>
+                    <td>Non-deterministic (가변 호출)</td>
+                </tr>
+                <tr>
+                    <td><strong>AWS 구현</strong></td>
+                    <td>Step Functions Parallel State</td>
+                    <td>Step Functions + Dynamic Map State + Bedrock</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="callout warning">
+            <div class="callout-title">Implementation Implication</div>
+            <p>
+                Parallelization은 비용과 latency가 예측 가능하므로 SLA를 걸기 쉽습니다.
+                Orchestrator-Worker는 동적이므로 비용 상한(budget cap)과 timeout 전략이 필수입니다.
+                이는 곧 <code>maxConcurrency</code>, <code>maxIterations</code>, <code>budgetTokens</code> 파라미터 설계로 이어집니다.
+            </p>
+        </div>
+    </section>
+
+    <div class="section-divider"></div>
+
+    <!-- Section 2: Theory -->
+    <section id="theory">
+        <h2>2. 이론적 기반: 4대 핵심 자료 분석</h2>
+
+        <h3>2.1 Anthropic — "Building Effective Agents" (2024.12)</h3>
+        <p class="meta"><span class="badge badge-pattern">Practitioner Guide</span> 저자: Erik S., Barry Zhang</p>
+
+        <h4>Augmented LLM: 모든 에이전트 패턴의 기본 단위</h4>
+        <p>
+            Anthropic은 에이전트를 구성하는 최소 단위를 "Augmented LLM"으로 정의합니다.
+            이는 bare LLM에 세 가지 capability를 결합한 것입니다:
+        </p>
+
+        <svg viewBox="0 0 600 280" xmlns="http://www.w3.org/2000/svg" style="width:100%; max-width:600px; margin:2rem auto; display:block;">
+          <defs>
+            <marker id="arrR2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#61afef"/></marker>
+            <marker id="arrL2" markerWidth="8" markerHeight="6" refX="0" refY="3" orient="auto"><polygon points="8 0, 0 3, 8 6" fill="#61afef"/></marker>
+          </defs>
+          <rect x="0" y="0" width="600" height="280" rx="8" fill="#0d0d1a" stroke="#2a2a4a"/>
+          <!-- Central box: Augmented LLM -->
+          <rect x="170" y="30" width="260" height="220" rx="10" fill="none" stroke="#2196f3" stroke-width="2" stroke-dasharray="6,3"/>
+          <text x="300" y="55" text-anchor="middle" fill="#2196f3" font-size="13" font-weight="bold" font-family="Inter, sans-serif">Augmented LLM</text>
+          <!-- LLM Core -->
+          <rect x="225" y="80" width="150" height="50" rx="6" fill="#0f3460" stroke="#61afef"/>
+          <text x="300" y="110" text-anchor="middle" fill="#eaeaea" font-size="12" font-family="Inter, sans-serif">LLM Core</text>
+          <!-- Memory -->
+          <rect x="240" y="175" width="120" height="45" rx="6" fill="#0f3460" stroke="#61afef"/>
+          <text x="300" y="195" text-anchor="middle" fill="#eaeaea" font-size="11" font-family="Inter, sans-serif">Memory</text>
+          <text x="300" y="210" text-anchor="middle" fill="#a0a0b0" font-size="10" font-family="Inter, sans-serif">(State / KV)</text>
+          <!-- Arrow LLM → Memory -->
+          <line x1="300" y1="130" x2="300" y2="175" stroke="#61afef" stroke-width="1.5" marker-end="url(#arrR2)"/>
+          <!-- Retrieval (left) -->
+          <rect x="20" y="85" width="120" height="45" rx="6" fill="#1e1e30" stroke="#4caf50"/>
+          <text x="80" y="105" text-anchor="middle" fill="#4caf50" font-size="11" font-family="Inter, sans-serif">Retrieval</text>
+          <text x="80" y="120" text-anchor="middle" fill="#a0a0b0" font-size="10" font-family="Inter, sans-serif">(RAG)</text>
+          <!-- Arrow Retrieval ← LLM -->
+          <line x1="225" y1="105" x2="140" y2="105" stroke="#61afef" stroke-width="1.5" marker-end="url(#arrR2)"/>
+          <!-- Tools (right) -->
+          <rect x="460" y="85" width="120" height="45" rx="6" fill="#1e1e30" stroke="#ff9800"/>
+          <text x="520" y="105" text-anchor="middle" fill="#ff9800" font-size="11" font-family="Inter, sans-serif">Tools</text>
+          <text x="520" y="120" text-anchor="middle" fill="#a0a0b0" font-size="10" font-family="Inter, sans-serif">(Actions)</text>
+          <!-- Arrow LLM → Tools -->
+          <line x1="375" y1="105" x2="460" y2="105" stroke="#61afef" stroke-width="1.5" marker-end="url(#arrR2)"/>
+        </svg>
+
+        <p>
+            구현 관점에서 이는 곧 각 Worker가 독립적인 Augmented LLM 인스턴스임을 의미합니다.
+            Worker마다 다른 retrieval source, 다른 tool set, 다른 memory scope를 가질 수 있습니다.
+        </p>
+
+        <h4>Orchestrator-Worker: Anthropic의 정의</h4>
+        <blockquote style="border-left: 3px solid var(--highlight); padding-left: 1rem; margin: 1.5rem 0; color: var(--text-muted); font-style: italic;">
+            "A central LLM dynamically breaks down tasks, delegates them to worker LLMs, and synthesizes their results.
+            The key difference from parallelization: subtasks aren't pre-defined but determined by the orchestrator based on the specific input."
+        </blockquote>
+
+        <h4>Anthropic이 제시하는 적용 시나리오</h4>
+        <ul>
+            <li><strong>Coding products:</strong> 여러 파일에 걸친 복잡한 변경. 어떤 파일을 수정해야 하는지, 몇 개나 수정해야 하는지가 입력에 따라 달라짐</li>
+            <li><strong>Search tasks:</strong> 다수 소스에서 정보를 수집하고 분석. 어떤 소스가 관련 있는지 미리 알 수 없음</li>
+        </ul>
+
+        <h4>Anthropic의 설계 철학 (구현에 직접 영향)</h4>
+        <ol>
+            <li><strong>Start simple:</strong> 단일 LLM + 좋은 프롬프트로 시작. 복잡성은 단순한 방법이 실패할 때만 추가</li>
+            <li><strong>Transparency:</strong> Orchestrator의 계획 단계를 가시화. 디버깅과 신뢰 확보에 필수</li>
+            <li><strong>ACI (Agent-Computer Interface):</strong> 도구 설계에 HCI 수준의 투자 필요. 도구 문서화, 에지 케이스 처리, 형식 최적화가 프롬프트 튜닝보다 더 중요할 수 있음</li>
+        </ol>
+
+        <div class="callout success">
+            <div class="callout-title">Implementation Takeaway</div>
+            <p>
+                Anthropic의 가장 중요한 메시지는 "프레임워크보다 기본기"입니다.
+                Worker의 tool definition 품질이 전체 시스템 성능의 병목이 됩니다.
+                구현 시 tool schema 설계에 전체 effort의 30% 이상을 투자해야 합니다.
+            </p>
+        </div>
+
+        <h3>2.2 Andrew Ng — "Multi-Agent Collaboration" (DeepLearning.AI)</h3>
+        <p class="meta"><span class="badge badge-pattern">Conceptual Framework</span> 저자: Andrew Ng</p>
+
+        <h4>핵심 논제: 왜 Multi-Agent가 Single-Agent보다 나은가?</h4>
+
+        <p>Ng은 세 가지 이론적 근거를 제시합니다:</p>
+
+        <div class="comparison-grid">
+            <div class="comparison-card">
+                <h4>1. 실증적 증거</h4>
+                <p>Ablation study 결과, 에이전트 수를 줄이면 성능이 하락합니다. 이는 multi-agent 구조가 단순한 오버헤드가 아니라 실질적 성능 기여를 한다는 것을 의미합니다.</p>
+            </div>
+            <div class="comparison-card">
+                <h4>2. 인지적 집중 효과</h4>
+                <p>LLM은 대용량 컨텍스트를 처리할 수 있지만, "한 번에 하나에 집중"하도록 프롬프트하면 성능이 향상됩니다. 이는 attention mechanism의 특성과 일치합니다.</p>
+            </div>
+            <div class="comparison-card">
+                <h4>3. 소프트웨어 공학적 분해</h4>
+                <p>프로세스/스레드 분해와 동일한 원리. 각 에이전트를 독립적으로 테스트, 최적화, 교체할 수 있으므로 시스템 유지보수성이 향상됩니다.</p>
+            </div>
+        </div>
+
+        <h4>역할 할당 메커니즘</h4>
+        <p>
+            동일한 LLM을 여러 번 호출하되, System Prompt를 통해 각기 다른 역할을 부여합니다.
+            이것이 "virtual team" 구성의 기술적 본질입니다:
+        </p>
+
+        <pre><code>// Worker A: Software Engineer 역할
+{
+  "system": "You are a senior software engineer. Your sole responsibility is writing
+             clean, efficient, production-ready code. You do NOT design systems or
+             write tests. You implement exactly what the specification describes.",
+  "model": "claude-sonnet-4-6-20250514"
+}
+
+// Worker B: QA Engineer 역할
+{
+  "system": "You are a QA engineer. Your sole responsibility is writing comprehensive
+             test cases. Given code and specifications, identify edge cases, failure
+             modes, and write tests that verify correctness.",
+  "model": "claude-sonnet-4-6-20250514"
+}
+
+// Orchestrator: Tech Lead 역할
+{
+  "system": "You are a tech lead. Analyze the incoming request, decompose it into
+             discrete implementation tasks, assign each to the appropriate specialist,
+             and synthesize their outputs into a coherent deliverable.",
+  "model": "claude-opus-4-6-20250514"  // Orchestrator는 더 강력한 모델 사용
+}</code></pre>
+
+        <h4>Ng이 지적하는 한계</h4>
+        <div class="callout warning">
+            <div class="callout-title">Predictability Risk</div>
+            <p>
+                "다중 에이전트 협업의 출력 품질은 예측하기 어렵습니다. 특히 에이전트 간 자유 상호작용을 허용하고
+                여러 도구를 제공할 때 더욱 그렇습니다."
+            </p>
+            <p style="margin-top: 0.8rem;">
+                <strong>구현 시사점:</strong> 자유 상호작용(Agent-to-Agent 직접 통신)보다는
+                Orchestrator를 통한 중앙 집중식 통신이 예측 가능성을 높입니다.
+                이는 곧 Hub-and-Spoke 토폴로지 선택의 근거가 됩니다.
+            </p>
+        </div>
+
+        <h4>성숙도 매트릭스</h4>
+        <table>
+            <thead>
+                <tr><th>패턴</th><th>성숙도</th><th>예측 가능성</th><th>Production 적합성</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Reflection</td><td>높음</td><td>높음</td><td>즉시 적용 가능</td></tr>
+                <tr><td>Tool Use</td><td>높음</td><td>높음</td><td>즉시 적용 가능</td></tr>
+                <tr><td>Planning</td><td>중간</td><td>중간</td><td>가드레일 필요</td></tr>
+                <tr><td>Multi-Agent</td><td>초기</td><td>낮음</td><td>충분한 제어 장치 필요</td></tr>
+            </tbody>
+        </table>
+
+        <h3>2.3 LangChain — "LangGraph Multi-Agent Workflows"</h3>
+        <p class="meta"><span class="badge badge-pattern">Implementation Framework</span> 저자: LangChain Team</p>
+
+        <h4>State Machine으로서의 Multi-Agent System</h4>
+        <p>
+            LangGraph의 핵심 추상화: 다중 에이전트 시스템은 <strong>방향 그래프(labeled directed graph)</strong>로 표현되는 상태 기계입니다.
+        </p>
+        <ul>
+            <li><strong>Node</strong> = Agent 또는 Function (computation unit)</li>
+            <li><strong>Edge</strong> = Transition rule (조건부 또는 무조건)</li>
+            <li><strong>State</strong> = Graph를 통해 흐르는 공유 데이터</li>
+        </ul>
+
+        <h4>3가지 Orchestration Topology</h4>
+
+        <!-- Pattern 1: Shared State -->
+        <svg viewBox="0 0 750 260" xmlns="http://www.w3.org/2000/svg" style="width:100%; max-width:750px; margin:2rem auto; display:block;">
+          <defs>
+            <marker id="arrow-green" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L10,4 L0,8 L3,4 Z" fill="#4caf50"/>
+            </marker>
+          </defs>
+          <rect x="0" y="0" width="750" height="260" rx="8" fill="#0d0d1a" stroke="#2a2a4a"/>
+          <text x="375" y="28" text-anchor="middle" fill="#4caf50" font-size="13" font-weight="bold" font-family="Inter, sans-serif">Pattern 1: SHARED STATE COLLABORATION</text>
+          <!-- Shared Message Pool -->
+          <rect x="200" y="45" width="350" height="50" rx="6" fill="#1e1e30" stroke="#4caf50" stroke-width="1.5"/>
+          <text x="375" y="68" text-anchor="middle" fill="#eaeaea" font-size="12" font-family="Inter, sans-serif">Shared Message Pool</text>
+          <text x="375" y="85" text-anchor="middle" fill="#a0a0b0" font-size="10" font-family="Inter, sans-serif">(All agents read &amp; write)</text>
+          <!-- Agents -->
+          <rect x="215" y="130" width="90" height="40" rx="6" fill="#0f3460" stroke="#61afef"/>
+          <text x="260" y="155" text-anchor="middle" fill="#eaeaea" font-size="11" font-family="Inter, sans-serif">Agent A</text>
+          <rect x="330" y="130" width="90" height="40" rx="6" fill="#0f3460" stroke="#61afef"/>
+          <text x="375" y="155" text-anchor="middle" fill="#eaeaea" font-size="11" font-family="Inter, sans-serif">Agent B</text>
+          <rect x="445" y="130" width="90" height="40" rx="6" fill="#0f3460" stroke="#61afef"/>
+          <text x="490" y="155" text-anchor="middle" fill="#eaeaea" font-size="11" font-family="Inter, sans-serif">Agent C</text>
+          <!-- Curved arrows from pool to agents -->
+          <path d="M290,95 C290,110 260,115 260,127" stroke="#4caf50" stroke-width="1.8" fill="none" marker-end="url(#arrow-green)"/>
+          <path d="M375,95 C375,108 375,115 375,127" stroke="#4caf50" stroke-width="1.8" fill="none" marker-end="url(#arrow-green)"/>
+          <path d="M460,95 C460,110 490,115 490,127" stroke="#4caf50" stroke-width="1.8" fill="none" marker-end="url(#arrow-green)"/>
+          <!-- Bidirectional hint: dashed lines going up -->
+          <path d="M250,130 C250,118 280,112 280,98" stroke="#4caf50" stroke-width="1" fill="none" stroke-dasharray="3,3"/>
+          <path d="M365,130 C365,118 365,112 365,98" stroke="#4caf50" stroke-width="1" fill="none" stroke-dasharray="3,3"/>
+          <path d="M500,130 C500,118 470,112 470,98" stroke="#4caf50" stroke-width="1" fill="none" stroke-dasharray="3,3"/>
+          <!-- Notes -->
+          <text x="30" y="200" fill="#a0a0b0" font-size="10" font-family="Inter, sans-serif">Routing: Rule-based (tool call → execute, "FINAL ANSWER" → return, else → next agent)</text>
+          <text x="30" y="218" fill="#a0a0b0" font-size="10" font-family="Inter, sans-serif">State: Fully shared — all intermediate steps visible</text>
+          <text x="30" y="236" fill="#a0a0b0" font-size="10" font-family="Inter, sans-serif">Tradeoff: Rich context sharing ↔ Information overload at scale</text>
+        </svg>
+
+        <!-- Pattern 2: Agent Supervisor -->
+        <svg viewBox="0 0 750 280" xmlns="http://www.w3.org/2000/svg" style="width:100%; max-width:750px; margin:2rem auto; display:block;">
+          <defs>
+            <marker id="arrow-red" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L10,4 L0,8 L3,4 Z" fill="#e94560"/>
+            </marker>
+          </defs>
+          <rect x="0" y="0" width="750" height="280" rx="8" fill="#0d0d1a" stroke="#e94560" stroke-width="1.5"/>
+          <text x="375" y="28" text-anchor="middle" fill="#e94560" font-size="13" font-weight="bold" font-family="Inter, sans-serif">Pattern 2: AGENT SUPERVISOR (= Orchestrator-Worker)</text>
+          <!-- Supervisor -->
+          <rect x="265" y="45" width="220" height="55" rx="8" fill="#1e1e30" stroke="#e94560" stroke-width="2"/>
+          <text x="375" y="70" text-anchor="middle" fill="#e94560" font-size="12" font-weight="bold" font-family="Inter, sans-serif">Supervisor</text>
+          <text x="375" y="88" text-anchor="middle" fill="#a0a0b0" font-size="10" font-family="Inter, sans-serif">"An agent whose tools are other agents"</text>
+          <!-- Workers -->
+          <rect x="170" y="145" width="110" height="45" rx="6" fill="#0f3460" stroke="#61afef"/>
+          <text x="225" y="172" text-anchor="middle" fill="#eaeaea" font-size="11" font-family="Inter, sans-serif">Worker A</text>
+          <rect x="320" y="145" width="110" height="45" rx="6" fill="#0f3460" stroke="#61afef"/>
+          <text x="375" y="172" text-anchor="middle" fill="#eaeaea" font-size="11" font-family="Inter, sans-serif">Worker B</text>
+          <rect x="470" y="145" width="110" height="45" rx="6" fill="#0f3460" stroke="#61afef"/>
+          <text x="525" y="172" text-anchor="middle" fill="#eaeaea" font-size="11" font-family="Inter, sans-serif">Worker C</text>
+          <!-- Curved arrows from supervisor to workers -->
+          <path d="M310,100 C295,120 240,125 225,142" stroke="#e94560" stroke-width="2" fill="none" marker-end="url(#arrow-red)"/>
+          <path d="M375,100 C375,115 375,130 375,142" stroke="#e94560" stroke-width="2" fill="none" marker-end="url(#arrow-red)"/>
+          <path d="M440,100 C455,120 510,125 525,142" stroke="#e94560" stroke-width="2" fill="none" marker-end="url(#arrow-red)"/>
+          <!-- Independent scratchpad labels -->
+          <text x="615" y="160" fill="#a0a0b0" font-size="9" font-family="Inter, sans-serif">← Independent</text>
+          <text x="615" y="175" fill="#a0a0b0" font-size="9" font-family="Inter, sans-serif">   scratchpads</text>
+          <!-- Notes -->
+          <text x="30" y="220" fill="#a0a0b0" font-size="10" font-family="Inter, sans-serif">Routing: Supervisor decides which worker to invoke (worker = tool)</text>
+          <text x="30" y="238" fill="#a0a0b0" font-size="10" font-family="Inter, sans-serif">State: Isolated per worker; supervisor aggregates final outputs</text>
+          <text x="30" y="256" fill="#a0a0b0" font-size="10" font-family="Inter, sans-serif">Tradeoff: Clean separation ↔ Supervisor becomes bottleneck</text>
+        </svg>
+
+        <!-- Pattern 3: Hierarchical -->
+        <svg viewBox="0 0 750 320" xmlns="http://www.w3.org/2000/svg" style="width:100%; max-width:750px; margin:2rem auto; display:block;">
+          <defs>
+            <marker id="arrow-orange" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L10,4 L0,8 L3,4 Z" fill="#ff9800"/>
+            </marker>
+            <marker id="arrow-blue" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L10,4 L0,8 L3,4 Z" fill="#2196f3"/>
+            </marker>
+          </defs>
+          <rect x="0" y="0" width="750" height="320" rx="8" fill="#0d0d1a" stroke="#2a2a4a"/>
+          <text x="375" y="28" text-anchor="middle" fill="#ff9800" font-size="13" font-weight="bold" font-family="Inter, sans-serif">Pattern 3: HIERARCHICAL AGENT TEAMS</text>
+          <!-- Top Supervisor -->
+          <rect x="275" y="45" width="200" height="45" rx="6" fill="#1e1e30" stroke="#ff9800" stroke-width="2"/>
+          <text x="375" y="72" text-anchor="middle" fill="#ff9800" font-size="12" font-weight="bold" font-family="Inter, sans-serif">Top-Level Supervisor</text>
+          <!-- Mid supervisors -->
+          <rect x="130" y="135" width="170" height="45" rx="6" fill="#1e1e30" stroke="#2196f3"/>
+          <text x="215" y="162" text-anchor="middle" fill="#2196f3" font-size="11" font-family="Inter, sans-serif">Research Supervisor</text>
+          <rect x="450" y="135" width="170" height="45" rx="6" fill="#1e1e30" stroke="#2196f3"/>
+          <text x="535" y="162" text-anchor="middle" fill="#2196f3" font-size="11" font-family="Inter, sans-serif">Engineering Supervisor</text>
+          <!-- Curved arrows top → mid -->
+          <path d="M325,90 C305,108 240,118 220,132" stroke="#ff9800" stroke-width="2" fill="none" marker-end="url(#arrow-orange)"/>
+          <path d="M425,90 C445,108 510,118 530,132" stroke="#ff9800" stroke-width="2" fill="none" marker-end="url(#arrow-orange)"/>
+          <!-- Workers -->
+          <rect x="110" y="220" width="80" height="38" rx="5" fill="#0f3460" stroke="#61afef"/>
+          <text x="150" y="244" text-anchor="middle" fill="#eaeaea" font-size="10" font-family="Inter, sans-serif">W1</text>
+          <rect x="220" y="220" width="80" height="38" rx="5" fill="#0f3460" stroke="#61afef"/>
+          <text x="260" y="244" text-anchor="middle" fill="#eaeaea" font-size="10" font-family="Inter, sans-serif">W2</text>
+          <rect x="450" y="220" width="80" height="38" rx="5" fill="#0f3460" stroke="#61afef"/>
+          <text x="490" y="244" text-anchor="middle" fill="#eaeaea" font-size="10" font-family="Inter, sans-serif">W3</text>
+          <rect x="560" y="220" width="80" height="38" rx="5" fill="#0f3460" stroke="#61afef"/>
+          <text x="600" y="244" text-anchor="middle" fill="#eaeaea" font-size="10" font-family="Inter, sans-serif">W4</text>
+          <!-- Curved arrows mid → workers -->
+          <path d="M185,180 C180,195 160,205 152,217" stroke="#2196f3" stroke-width="1.5" fill="none" marker-end="url(#arrow-blue)"/>
+          <path d="M245,180 C250,195 255,205 258,217" stroke="#2196f3" stroke-width="1.5" fill="none" marker-end="url(#arrow-blue)"/>
+          <path d="M505,180 C500,195 495,205 492,217" stroke="#2196f3" stroke-width="1.5" fill="none" marker-end="url(#arrow-blue)"/>
+          <path d="M565,180 C570,195 590,205 598,217" stroke="#2196f3" stroke-width="1.5" fill="none" marker-end="url(#arrow-blue)"/>
+          <!-- Notes -->
+          <text x="30" y="280" fill="#a0a0b0" font-size="10" font-family="Inter, sans-serif">Routing: Recursive supervisor delegation</text>
+          <text x="30" y="298" fill="#a0a0b0" font-size="10" font-family="Inter, sans-serif">State: Scoped per team; team output → parent supervisor</text>
+          <text x="30" y="314" fill="#a0a0b0" font-size="10" font-family="Inter, sans-serif">Tradeoff: Handles extreme complexity ↔ Latency &amp; cost multiplication</text>
+        </svg>
+
+        <h4>구현 관점에서의 핵심 인사이트</h4>
+
+        <div class="callout">
+            <div class="callout-title">Supervisor-as-Tool-User Pattern</div>
+            <p>
+                "감독자는 다른 에이전트를 도구로 사용하는 에이전트다" — 이것이 LangGraph 구현의 핵심입니다.
+                기술적으로, Worker Agent를 Tool Definition으로 감싸면 Orchestrator의 기존 tool-use 메커니즘을
+                그대로 활용할 수 있습니다. 새로운 routing 로직이 필요 없습니다.
+            </p>
+        </div>
+
+        <pre><code>// Supervisor의 tool 정의 — Worker를 tool로 등록
+const tools = [
+  {
+    name: "research_agent",
+    description: "Performs deep research on a topic. Use when you need factual data,
+                  market analysis, or technical documentation review.",
+    parameters: {
+      query: { type: "string", description: "Research question" },
+      depth: { type: "enum", values: ["shallow", "deep"] }
+    }
+  },
+  {
+    name: "code_agent",
+    description: "Writes production code. Use when you have a clear specification
+                  and need implementation.",
+    parameters: {
+      spec: { type: "string", description: "Implementation specification" },
+      language: { type: "string" },
+      constraints: { type: "array", items: { type: "string" } }
+    }
+  }
+];</code></pre>
+
+        <h4>Framework 비교 (구현 선택 시 참고)</h4>
+        <table>
+            <thead>
+                <tr><th>Framework</th><th>추상화 수준</th><th>전환 제어</th><th>AWS 통합</th><th>Production 준비도</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>LangGraph</td><td>Low-level</td><td>명시적 Edge 정의</td><td>수동 (Lambda/ECS)</td><td>높음</td></tr>
+                <tr><td>AutoGen</td><td>Mid-level</td><td>대화 흐름 기반</td><td>제한적</td><td>중간</td></tr>
+                <tr><td>CrewAI</td><td>High-level</td><td>선언적/자동</td><td>제한적</td><td>중간</td></tr>
+                <tr><td>Bedrock Agents</td><td>Managed</td><td>AWS 관리형</td><td>Native</td><td>높음 (제한된 유연성)</td></tr>
+                <tr><td>Custom (Step Functions)</td><td>Infrastructure</td><td>완전 제어</td><td>Native</td><td>최고 (구현 비용 높음)</td></tr>
+            </tbody>
+        </table>
+
+        <h3>2.4 MetaGPT — "Meta Programming for Multi-Agent Collaborative Framework"</h3>
+        <p class="meta"><span class="badge badge-metric">Empirical Research</span> arXiv:2308.00352 | Sirui Hong et al. (Jürgen Schmidhuber 참여)</p>
+
+        <h4>해결하는 문제: Cascading Hallucination</h4>
+        <p>
+            LLM을 단순히 체이닝하면 환각(hallucination)이 단계를 거칠수록 증폭됩니다.
+            A의 작은 오류가 B에서 확대되고, C에서는 완전히 이탈합니다.
+            이는 naive한 multi-agent 구현의 가장 큰 실패 모드입니다.
+        </p>
+
+        <h4>해법: Standard Operating Procedures (SOP) as Prompt Sequences</h4>
+        <p>
+            실제 소프트웨어 회사의 개발 프로세스를 그대로 인코딩합니다.
+            자연어 대화가 아닌 <strong>구조화된 artifact</strong>를 통해 에이전트 간 통신합니다.
+        </p>
+
+        <svg viewBox="0 0 780 620" xmlns="http://www.w3.org/2000/svg" style="width:100%; max-width:780px; margin:2rem auto; display:block;">
+          <defs>
+            <marker id="arrD6" markerWidth="8" markerHeight="6" refX="4" refY="6" orient="auto"><polygon points="0 0, 8 0, 4 6" fill="#e94560"/></marker>
+            <marker id="arrR6" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4caf50"/></marker>
+          </defs>
+          <rect x="0" y="0" width="780" height="620" rx="8" fill="#0d0d1a" stroke="#2a2a4a"/>
+          <text x="390" y="28" text-anchor="middle" fill="#e94560" font-size="14" font-weight="bold" font-family="Inter, sans-serif">MetaGPT ASSEMBLY LINE WORKFLOW</text>
+
+          <!-- User Requirement -->
+          <rect x="115" y="50" width="160" height="36" rx="18" fill="#1e1e30" stroke="#a0a0b0"/>
+          <text x="195" y="73" text-anchor="middle" fill="#eaeaea" font-size="11" font-family="Inter, sans-serif">User Requirement</text>
+          <line x1="195" y1="86" x2="195" y2="110" stroke="#e94560" stroke-width="1.5" marker-end="url(#arrD6)"/>
+
+          <!-- Product Manager -->
+          <rect x="120" y="110" width="150" height="50" rx="6" fill="#0f3460" stroke="#2196f3" stroke-width="1.5"/>
+          <text x="195" y="133" text-anchor="middle" fill="#eaeaea" font-size="11" font-weight="bold" font-family="Inter, sans-serif">Product Manager</text>
+          <text x="195" y="150" text-anchor="middle" fill="#a0a0b0" font-size="9" font-family="Inter, sans-serif">Requirements Analysis</text>
+          <line x1="270" y1="135" x2="380" y2="135" stroke="#4caf50" stroke-width="1.2" marker-end="url(#arrR6)"/>
+          <text x="395" y="128" fill="#4caf50" font-size="10" font-weight="bold" font-family="Inter, sans-serif">PRD</text>
+          <text x="395" y="142" fill="#a0a0b0" font-size="9" font-family="Inter, sans-serif">User Stories, Competitive Analysis,</text>
+          <text x="395" y="155" fill="#a0a0b0" font-size="9" font-family="Inter, sans-serif">Requirement Pool (structured JSON)</text>
+          <line x1="195" y1="160" x2="195" y2="195" stroke="#e94560" stroke-width="1.5" marker-end="url(#arrD6)"/>
+
+          <!-- Architect -->
+          <rect x="120" y="195" width="150" height="50" rx="6" fill="#0f3460" stroke="#2196f3" stroke-width="1.5"/>
+          <text x="195" y="218" text-anchor="middle" fill="#eaeaea" font-size="11" font-weight="bold" font-family="Inter, sans-serif">Architect</text>
+          <text x="195" y="235" text-anchor="middle" fill="#a0a0b0" font-size="9" font-family="Inter, sans-serif">System Design</text>
+          <line x1="270" y1="220" x2="380" y2="220" stroke="#4caf50" stroke-width="1.2" marker-end="url(#arrR6)"/>
+          <text x="395" y="213" fill="#4caf50" font-size="10" font-weight="bold" font-family="Inter, sans-serif">System Design Doc</text>
+          <text x="395" y="227" fill="#a0a0b0" font-size="9" font-family="Inter, sans-serif">File Structure, Data Structures,</text>
+          <text x="395" y="240" fill="#a0a0b0" font-size="9" font-family="Inter, sans-serif">API Interface Definitions</text>
+          <line x1="195" y1="245" x2="195" y2="280" stroke="#e94560" stroke-width="1.5" marker-end="url(#arrD6)"/>
+
+          <!-- Project Manager -->
+          <rect x="120" y="280" width="150" height="50" rx="6" fill="#0f3460" stroke="#2196f3" stroke-width="1.5"/>
+          <text x="195" y="303" text-anchor="middle" fill="#eaeaea" font-size="11" font-weight="bold" font-family="Inter, sans-serif">Project Manager</text>
+          <text x="195" y="320" text-anchor="middle" fill="#a0a0b0" font-size="9" font-family="Inter, sans-serif">Task Allocation</text>
+          <line x1="270" y1="305" x2="380" y2="305" stroke="#4caf50" stroke-width="1.2" marker-end="url(#arrR6)"/>
+          <text x="395" y="298" fill="#4caf50" font-size="10" font-weight="bold" font-family="Inter, sans-serif">Task Matrix</text>
+          <text x="395" y="312" fill="#a0a0b0" font-size="9" font-family="Inter, sans-serif">Task breakdown, dependency graph,</text>
+          <text x="395" y="325" fill="#a0a0b0" font-size="9" font-family="Inter, sans-serif">assignment to engineers</text>
+          <line x1="195" y1="330" x2="195" y2="365" stroke="#e94560" stroke-width="1.5" marker-end="url(#arrD6)"/>
+
+          <!-- Engineer -->
+          <rect x="120" y="365" width="150" height="50" rx="6" fill="#0f3460" stroke="#ff9800" stroke-width="1.5"/>
+          <text x="195" y="388" text-anchor="middle" fill="#eaeaea" font-size="11" font-weight="bold" font-family="Inter, sans-serif">Engineer</text>
+          <text x="195" y="405" text-anchor="middle" fill="#a0a0b0" font-size="9" font-family="Inter, sans-serif">Implementation</text>
+          <line x1="270" y1="390" x2="380" y2="390" stroke="#4caf50" stroke-width="1.2" marker-end="url(#arrR6)"/>
+          <text x="395" y="383" fill="#4caf50" font-size="10" font-weight="bold" font-family="Inter, sans-serif">Source Code</text>
+          <text x="395" y="397" fill="#a0a0b0" font-size="9" font-family="Inter, sans-serif">Code files, unit tests,</text>
+          <text x="395" y="410" fill="#ff9800" font-size="9" font-family="Inter, sans-serif">runtime verification (max 3 retries)</text>
+          <line x1="195" y1="415" x2="195" y2="450" stroke="#e94560" stroke-width="1.5" marker-end="url(#arrD6)"/>
+
+          <!-- QA Engineer -->
+          <rect x="120" y="450" width="150" height="50" rx="6" fill="#0f3460" stroke="#2196f3" stroke-width="1.5"/>
+          <text x="195" y="473" text-anchor="middle" fill="#eaeaea" font-size="11" font-weight="bold" font-family="Inter, sans-serif">QA Engineer</text>
+          <text x="195" y="490" text-anchor="middle" fill="#a0a0b0" font-size="9" font-family="Inter, sans-serif">Validation</text>
+          <line x1="270" y1="475" x2="380" y2="475" stroke="#4caf50" stroke-width="1.2" marker-end="url(#arrR6)"/>
+          <text x="395" y="468" fill="#4caf50" font-size="10" font-weight="bold" font-family="Inter, sans-serif">Test Report</text>
+          <text x="395" y="482" fill="#a0a0b0" font-size="9" font-family="Inter, sans-serif">Test cases, coverage report,</text>
+          <text x="395" y="495" fill="#a0a0b0" font-size="9" font-family="Inter, sans-serif">bug reports</text>
+          <line x1="195" y1="500" x2="195" y2="540" stroke="#e94560" stroke-width="1.5" marker-end="url(#arrD6)"/>
+
+          <!-- Final Deliverable -->
+          <rect x="115" y="540" width="160" height="36" rx="18" fill="#1e1e30" stroke="#4caf50" stroke-width="1.5"/>
+          <text x="195" y="563" text-anchor="middle" fill="#4caf50" font-size="11" font-weight="bold" font-family="Inter, sans-serif">Final Deliverable</text>
+
+          <!-- Side bracket for SOP -->
+          <line x1="80" y1="110" x2="80" y2="500" stroke="#e94560" stroke-width="1" stroke-dasharray="4,3"/>
+          <text x="55" y="310" text-anchor="middle" fill="#e94560" font-size="10" font-family="Inter, sans-serif" transform="rotate(-90 55 310)">SOP SEQUENCE</text>
+        </svg>
+
+        <h4>Communication Protocol: Shared Message Pool + Pub/Sub</h4>
+
+        <p>MetaGPT의 핵심 아키텍처 혁신:</p>
+
+        <div class="comparison-grid">
+            <div class="comparison-card">
+                <h4>기존 방식 (ChatDev 등)</h4>
+                <p>Agent-to-Agent 직접 대화. 자연어 기반.</p>
+                <p><strong>문제:</strong> 대화가 길어지면 정보 손실, 맥락 이탈, hallucination 전파</p>
+            </div>
+            <div class="comparison-card">
+                <h4>MetaGPT 방식</h4>
+                <p>공유 메시지 풀에 구조화된 문서를 게시. 구독 기반 소비.</p>
+                <p><strong>장점:</strong> 정보 무손실, 역할 기반 필터링, 의존성 기반 활성화</p>
+            </div>
+        </div>
+
+        <pre><code>// MetaGPT Communication Protocol (conceptual)
+class SharedMessagePool {
+  publish(role: Role, artifact: StructuredDocument): void;
+  subscribe(role: Role, dependsOn: Role[]): Observable&lt;StructuredDocument&gt;;
+}
+
+// Engineer는 Architect의 설계서가 게시된 후에만 활성화
+engineer.subscribe(["architect"]).pipe(
+  filter(msg => msg.type === "SystemDesign"),
+  map(design => engineer.implement(design))
+);</code></pre>
+
+        <h4>Executable Feedback Mechanism</h4>
+        <p>
+            Engineer가 생성한 코드를 <strong>실제로 실행</strong>하여 검증합니다.
+            실패 시 PRD, 설계 문서, 기존 코드를 참조하여 디버깅합니다 (최대 3회 재시도).
+            이것이 "verification gate" 역할을 하며 hallucination 전파를 차단합니다.
+        </p>
+
+        <div class="callout success">
+            <div class="callout-title">Key Insight for Implementation</div>
+            <p>
+                MetaGPT가 증명한 것: <strong>구조화된 intermediate artifact + 실행 기반 검증</strong>이
+                자연어 체이닝 대비 극적으로 우수합니다.
+                구현 시 Worker 간 통신을 자연어가 아닌 schema-validated JSON/structured format으로 강제하고,
+                가능한 모든 단계에서 자동 검증 게이트를 삽입해야 합니다.
+            </p>
+        </div>
+    </section>
+
+    <div class="section-divider"></div>
+
+    <!-- Section 3: Effectiveness -->
+    <section id="effectiveness">
+        <h2>3. 정량적 효과 분석</h2>
+
+        <h3>3.1 MetaGPT Benchmark Results</h3>
+
+        <h4>HumanEval & MBPP (코드 생성 표준 벤치마크)</h4>
+        <table>
+            <thead>
+                <tr><th>System</th><th>HumanEval (Pass@1)</th><th>MBPP (Pass@1)</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>MetaGPT + GPT-4</td><td><strong>85.9%</strong></td><td><strong>87.7%</strong></td></tr>
+                <tr><td>MetaGPT (실행 피드백 제거)</td><td>81.7% (-4.2%p)</td><td>82.3% (-5.4%p)</td></tr>
+                <tr><td>GPT-4 단독</td><td>67.0%</td><td>—</td></tr>
+            </tbody>
+        </table>
+
+        <h4>SoftwareDev Dataset (End-to-End 소프트웨어 개발)</h4>
+        <table>
+            <thead>
+                <tr>
+                    <th>Metric</th>
+                    <th>AutoGPT/LangChain</th>
+                    <th>ChatDev</th>
+                    <th>MetaGPT (no feedback)</th>
+                    <th>MetaGPT (full)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Executability (1-4)</strong></td>
+                    <td>1.0</td>
+                    <td>2.25</td>
+                    <td>3.67</td>
+                    <td><strong>3.75</strong></td>
+                </tr>
+                <tr>
+                    <td><strong>Human Revision Cost</strong></td>
+                    <td>—</td>
+                    <td>2.5회</td>
+                    <td>2.25회</td>
+                    <td><strong>0.83회</strong></td>
+                </tr>
+                <tr>
+                    <td>Total Code Lines</td>
+                    <td>—</td>
+                    <td>77.5</td>
+                    <td>194.6</td>
+                    <td>251.4</td>
+                </tr>
+                <tr>
+                    <td>Tokens per Code Line</td>
+                    <td>—</td>
+                    <td>248.9</td>
+                    <td>126.5</td>
+                    <td>124.3</td>
+                </tr>
+                <tr>
+                    <td>Token Usage (cost proxy)</td>
+                    <td>—</td>
+                    <td>19,292</td>
+                    <td>24,613</td>
+                    <td>31,255</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="callout critical">
+            <div class="callout-title">Cost-Quality Trade-off Analysis</div>
+            <p>
+                MetaGPT는 ChatDev 대비 62% 더 많은 토큰을 소비합니다 (31,255 vs 19,292).
+                그러나 Human Revision Cost가 2.5회 → 0.83회로 67% 감소합니다.
+            </p>
+            <p style="margin-top: 0.5rem;">
+                <strong>ROI 계산:</strong> Senior Engineer의 시간을 $150/hr로 가정하고, 한 번의 revision에 30분이 소요된다면:
+            </p>
+            <ul>
+                <li>ChatDev: 2.5 × $75 = $187.50 인건비</li>
+                <li>MetaGPT: 0.83 × $75 = $62.25 인건비</li>
+                <li><strong>절감: $125.25/task</strong> (추가 토큰 비용 ~$0.36 대비)</li>
+            </ul>
+            <p style="margin-top: 0.5rem;">
+                추가 토큰 비용 대비 인건비 절감의 비율이 약 <strong>350:1</strong>입니다.
+                이것이 Orchestrator-Worker 패턴의 경제적 정당성입니다.
+            </p>
+        </div>
+
+        <h3>3.2 Ablation Study: 역할 수와 성능의 관계</h3>
+
+        <table>
+            <thead>
+                <tr><th>Configuration</th><th>Code Lines</th><th>Executability (1-4)</th><th>Delta</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Engineer only (single agent)</td><td>83</td><td>1.0</td><td>baseline</td></tr>
+                <tr><td>+ Product Manager</td><td>112</td><td>2.0</td><td>+1.0</td></tr>
+                <tr><td>+ Architect</td><td>143</td><td>2.5</td><td>+0.5</td></tr>
+                <tr><td>+ Project Manager</td><td>205</td><td>2.0</td><td>-0.5 *</td></tr>
+                <tr><td><strong>Full Team (all roles)</strong></td><td>191</td><td><strong>4.0</strong></td><td>+2.0</td></tr>
+            </tbody>
+        </table>
+
+        <div class="callout">
+            <div class="callout-title">Non-linear Scaling Insight</div>
+            <p>
+                주목할 점: Project Manager만 추가 시 오히려 성능이 하락합니다 (2.5 → 2.0).
+                그러나 QA Engineer까지 포함한 Full Team에서 4.0으로 도약합니다.
+                이는 <strong>개별 역할의 가치가 독립적이지 않고, 조합에 의해 결정</strong>됨을 의미합니다.
+            </p>
+            <p style="margin-top: 0.5rem;">
+                <strong>구현 시사점:</strong> Worker를 점진적으로 추가할 때, 단순히 "역할이 많으면 좋다"가 아니라
+                역할 간 <strong>상호 보완 관계(complementarity)</strong>를 설계해야 합니다.
+                특히 "검증 역할"(QA)의 부재 시 다른 역할들의 효과가 감소합니다.
+            </p>
+        </div>
+
+        <h3>3.3 효과의 원인 분석: 무엇이 성능을 만드는가?</h3>
+
+        <table>
+            <thead>
+                <tr><th>Factor</th><th>기여도</th><th>Evidence</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Structured Communication</strong></td>
+                    <td>가장 높음</td>
+                    <td>ChatDev(자연어) vs MetaGPT(구조화): 2.25 vs 3.75</td>
+                </tr>
+                <tr>
+                    <td><strong>Executable Verification</strong></td>
+                    <td>높음</td>
+                    <td>피드백 제거 시 -4.2~5.4%p 하락</td>
+                </tr>
+                <tr>
+                    <td><strong>Role Specialization</strong></td>
+                    <td>중간</td>
+                    <td>Single → Full Team: 1.0 → 4.0</td>
+                </tr>
+                <tr>
+                    <td><strong>SOP Sequencing</strong></td>
+                    <td>중간</td>
+                    <td>의존성 기반 활성화로 순서 보장</td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <div class="section-divider"></div>
+
+    <!-- Section 4: Architecture -->
+    <section id="architecture">
+        <h2>4. 구현 아키텍처 설계</h2>
+
+        <h3>4.1 Reference Architecture</h3>
+
+        <svg viewBox="0 0 860 680" xmlns="http://www.w3.org/2000/svg" style="width:100%; max-width:860px; margin:2rem auto; display:block;">
+          <defs>
+            <marker id="arrD7" markerWidth="8" markerHeight="6" refX="4" refY="6" orient="auto"><polygon points="0 0, 8 0, 4 6" fill="#e94560"/></marker>
+            <marker id="arrR7" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#61afef"/></marker>
+            <marker id="arrU7" markerWidth="8" markerHeight="6" refX="4" refY="0" orient="auto"><polygon points="0 6, 8 6, 4 0" fill="#61afef"/></marker>
+          </defs>
+          <rect x="0" y="0" width="860" height="680" rx="8" fill="#0d0d1a" stroke="#2a2a4a"/>
+          <text x="430" y="25" text-anchor="middle" fill="#eaeaea" font-size="13" font-weight="bold" font-family="Inter, sans-serif">ORCHESTRATOR-WORKER REFERENCE ARCHITECTURE</text>
+
+          <!-- CLIENT LAYER -->
+          <rect x="250" y="40" width="360" height="45" rx="6" fill="#1e1e30" stroke="#a0a0b0"/>
+          <text x="430" y="60" text-anchor="middle" fill="#eaeaea" font-size="11" font-weight="bold" font-family="Inter, sans-serif">CLIENT LAYER</text>
+          <text x="430" y="76" text-anchor="middle" fill="#a0a0b0" font-size="9" font-family="Inter, sans-serif">API Gateway / WebSocket / Event Bus</text>
+          <line x1="430" y1="85" x2="430" y2="105" stroke="#e94560" stroke-width="1.5" marker-end="url(#arrD7)"/>
+
+          <!-- ORCHESTRATOR LAYER box -->
+          <rect x="50" y="105" width="760" height="215" rx="8" fill="none" stroke="#2196f3" stroke-width="1.5"/>
+          <text x="80" y="125" fill="#2196f3" font-size="11" font-weight="bold" font-family="Inter, sans-serif">ORCHESTRATOR LAYER</text>
+
+          <!-- Task Intake -->
+          <rect x="100" y="140" width="140" height="45" rx="5" fill="#0f3460" stroke="#61afef"/>
+          <text x="170" y="160" text-anchor="middle" fill="#eaeaea" font-size="10" font-family="Inter, sans-serif">Task Intake</text>
+          <text x="170" y="175" text-anchor="middle" fill="#a0a0b0" font-size="9" font-family="Inter, sans-serif">&amp; Analysis</text>
+          <!-- Planning -->
+          <rect x="290" y="140" width="140" height="45" rx="5" fill="#0f3460" stroke="#61afef"/>
+          <text x="360" y="160" text-anchor="middle" fill="#eaeaea" font-size="10" font-family="Inter, sans-serif">Planning</text>
+          <text x="360" y="175" text-anchor="middle" fill="#a0a0b0" font-size="9" font-family="Inter, sans-serif">&amp; Decomposition</text>
+          <!-- Result Synthesis -->
+          <rect x="480" y="140" width="140" height="45" rx="5" fill="#0f3460" stroke="#61afef"/>
+          <text x="550" y="160" text-anchor="middle" fill="#eaeaea" font-size="10" font-family="Inter, sans-serif">Result</text>
+          <text x="550" y="175" text-anchor="middle" fill="#a0a0b0" font-size="9" font-family="Inter, sans-serif">Synthesis Engine</text>
+          <!-- Arrows between orchestrator components -->
+          <line x1="240" y1="162" x2="290" y2="162" stroke="#61afef" stroke-width="1.2" marker-end="url(#arrR7)"/>
+          <line x1="430" y1="162" x2="480" y2="162" stroke="#61afef" stroke-width="1.2" marker-end="url(#arrR7)"/>
+
+          <!-- Dispatch Controller -->
+          <rect x="200" y="220" width="380" height="45" rx="5" fill="#1e1e30" stroke="#e94560"/>
+          <text x="390" y="240" text-anchor="middle" fill="#e94560" font-size="11" font-family="Inter, sans-serif">Worker Registry &amp; Dispatch Controller</text>
+          <text x="390" y="256" text-anchor="middle" fill="#a0a0b0" font-size="9" font-family="Inter, sans-serif">Dynamic routing · Fan-out · Budget tracking</text>
+          <!-- Arrows planning → dispatch, dispatch → synthesis -->
+          <line x1="360" y1="185" x2="360" y2="220" stroke="#e94560" stroke-width="1.2" marker-end="url(#arrD7)"/>
+          <line x1="550" y1="220" x2="550" y2="185" stroke="#61afef" stroke-width="1.2" marker-end="url(#arrU7)"/>
+
+          <!-- Arrows dispatch → workers -->
+          <line x1="300" y1="265" x2="220" y2="340" stroke="#e94560" stroke-width="1.5" marker-end="url(#arrD7)"/>
+          <line x1="390" y1="265" x2="390" y2="340" stroke="#e94560" stroke-width="1.5" marker-end="url(#arrD7)"/>
+          <line x1="480" y1="265" x2="570" y2="340" stroke="#e94560" stroke-width="1.5" marker-end="url(#arrD7)"/>
+
+          <!-- WORKERS -->
+          <rect x="140" y="340" width="150" height="115" rx="6" fill="#1e1e30" stroke="#61afef"/>
+          <text x="215" y="362" text-anchor="middle" fill="#eaeaea" font-size="11" font-weight="bold" font-family="Inter, sans-serif">Worker A</text>
+          <rect x="158" y="372" width="115" height="22" rx="3" fill="#0f3460"/><text x="215" y="387" text-anchor="middle" fill="#61afef" font-size="9" font-family="Inter, sans-serif">LLM</text>
+          <rect x="158" y="398" width="115" height="22" rx="3" fill="#0f3460"/><text x="215" y="413" text-anchor="middle" fill="#ff9800" font-size="9" font-family="Inter, sans-serif">Tools</text>
+          <rect x="158" y="424" width="115" height="22" rx="3" fill="#0f3460"/><text x="215" y="439" text-anchor="middle" fill="#4caf50" font-size="9" font-family="Inter, sans-serif">Memory</text>
+
+          <rect x="320" y="340" width="150" height="115" rx="6" fill="#1e1e30" stroke="#61afef"/>
+          <text x="395" y="362" text-anchor="middle" fill="#eaeaea" font-size="11" font-weight="bold" font-family="Inter, sans-serif">Worker B</text>
+          <rect x="338" y="372" width="115" height="22" rx="3" fill="#0f3460"/><text x="395" y="387" text-anchor="middle" fill="#61afef" font-size="9" font-family="Inter, sans-serif">LLM</text>
+          <rect x="338" y="398" width="115" height="22" rx="3" fill="#0f3460"/><text x="395" y="413" text-anchor="middle" fill="#ff9800" font-size="9" font-family="Inter, sans-serif">Tools</text>
+          <rect x="338" y="424" width="115" height="22" rx="3" fill="#0f3460"/><text x="395" y="439" text-anchor="middle" fill="#4caf50" font-size="9" font-family="Inter, sans-serif">Memory</text>
+
+          <rect x="500" y="340" width="150" height="115" rx="6" fill="#1e1e30" stroke="#61afef"/>
+          <text x="575" y="362" text-anchor="middle" fill="#eaeaea" font-size="11" font-weight="bold" font-family="Inter, sans-serif">Worker N</text>
+          <rect x="518" y="372" width="115" height="22" rx="3" fill="#0f3460"/><text x="575" y="387" text-anchor="middle" fill="#61afef" font-size="9" font-family="Inter, sans-serif">LLM</text>
+          <rect x="518" y="398" width="115" height="22" rx="3" fill="#0f3460"/><text x="575" y="413" text-anchor="middle" fill="#ff9800" font-size="9" font-family="Inter, sans-serif">Tools</text>
+          <rect x="518" y="424" width="115" height="22" rx="3" fill="#0f3460"/><text x="575" y="439" text-anchor="middle" fill="#4caf50" font-size="9" font-family="Inter, sans-serif">Memory</text>
+
+          <!-- Arrows workers → verification -->
+          <line x1="215" y1="455" x2="215" y2="490" stroke="#61afef" stroke-width="1.2" marker-end="url(#arrD7)"/>
+          <line x1="395" y1="455" x2="395" y2="490" stroke="#61afef" stroke-width="1.2" marker-end="url(#arrD7)"/>
+          <line x1="575" y1="455" x2="575" y2="490" stroke="#61afef" stroke-width="1.2" marker-end="url(#arrD7)"/>
+
+          <!-- VERIFICATION LAYER -->
+          <rect x="120" y="490" width="580" height="55" rx="6" fill="#1e1e30" stroke="#ff9800" stroke-width="1.5"/>
+          <text x="410" y="515" text-anchor="middle" fill="#ff9800" font-size="11" font-weight="bold" font-family="Inter, sans-serif">VERIFICATION LAYER</text>
+          <text x="410" y="533" text-anchor="middle" fill="#a0a0b0" font-size="9" font-family="Inter, sans-serif">Execution Gates · Schema Validation · Automated Testing · Human-in-the-Loop</text>
+          <line x1="410" y1="545" x2="410" y2="575" stroke="#e94560" stroke-width="1.5" marker-end="url(#arrD7)"/>
+
+          <!-- SHARED STATE STORE -->
+          <rect x="120" y="575" width="580" height="55" rx="6" fill="#1e1e30" stroke="#4caf50" stroke-width="1.5"/>
+          <text x="410" y="600" text-anchor="middle" fill="#4caf50" font-size="11" font-weight="bold" font-family="Inter, sans-serif">SHARED STATE STORE</text>
+          <text x="410" y="618" text-anchor="middle" fill="#a0a0b0" font-size="9" font-family="Inter, sans-serif">Structured Artifacts · Execution Logs · Dependency Graph · Audit Trail</text>
+        </svg>
+
+        <h3>4.2 핵심 컴포넌트 상세 설계</h3>
+
+        <h4>A. Orchestrator — Planning & Decomposition Engine</h4>
+
+        <pre><code>interface OrchestratorConfig {
+  model: string;                    // 가장 강력한 모델 사용 (claude-opus-4-6 권장)
+  maxWorkers: number;               // 동시 실행 가능한 Worker 수 상한
+  maxIterations: number;            // 전체 orchestration loop 상한
+  budgetTokens: number;             // 총 토큰 예산 (비용 제어)
+  timeoutMs: number;                // 전체 작업 타임아웃
+  planningStrategy: "sequential" | "parallel" | "adaptive";
+}
+
+interface TaskDecomposition {
+  originalTask: string;
+  plan: {
+    reasoning: string;              // Orchestrator의 분해 근거 (transparency)
+    subtasks: SubTask[];
+    dependencies: DependencyGraph;  // DAG로 실행 순서 결정
+    estimatedCost: TokenEstimate;
+  };
+}
+
+interface SubTask {
+  id: string;
+  workerType: WorkerRole;           // 어떤 Worker에게 할당할지
+  instruction: string;              // Worker에게 전달할 구체적 지시
+  inputArtifacts: ArtifactRef[];    // 선행 Worker의 산출물 참조
+  outputSchema: JSONSchema;         // 산출물의 기대 형식 (검증용)
+  priority: number;
+  estimatedTokens: number;
+}</code></pre>
+
+        <h4>B. Worker — Specialized Execution Unit</h4>
+
+        <pre><code>interface WorkerConfig {
+  role: WorkerRole;
+  model: string;                    // 역할에 맞는 모델 선택 (비용 최적화)
+  systemPrompt: string;             // 역할 특화 프롬프트
+  tools: ToolDefinition[];          // 역할 특화 도구 세트
+  retrieval?: RetrievalConfig;      // 역할 특화 지식 베이스
+  outputSchema: JSONSchema;         // 산출물 스키마 (강제)
+  maxRetries: number;               // 실행 실패 시 재시도 횟수
+  verificationGate?: VerificationFn; // 산출물 검증 함수
+}
+
+// Worker Role 정의 예시
+type WorkerRole =
+  | "researcher"      // 정보 수집 및 분석
+  | "coder"           // 코드 생성
+  | "reviewer"        // 코드/문서 리뷰
+  | "tester"          // 테스트 생성 및 실행
+  | "writer"          // 문서 작성
+  | "analyst"         // 데이터 분석
+  | "planner";        // 세부 계획 수립</code></pre>
+
+        <h4>C. Verification Layer — Hallucination 차단</h4>
+
+        <pre><code>interface VerificationGate {
+  type: "schema" | "execution" | "llm-judge" | "human";
+
+  // Schema Validation: 산출물이 기대 형식을 준수하는지
+  schemaCheck(output: any, schema: JSONSchema): ValidationResult;
+
+  // Execution Verification: 코드를 실제 실행하여 동작 확인
+  executionCheck(code: string, testCases: TestCase[]): ExecutionResult;
+
+  // LLM Judge: 다른 LLM이 품질을 평가
+  llmJudge(output: any, criteria: string): QualityScore;
+
+  // Human-in-the-Loop: 중요 결정에 대한 사람 승인
+  humanApproval(output: any, context: string): Promise&lt;boolean&gt;;
+}
+
+// Retry 전략
+interface RetryPolicy {
+  maxAttempts: number;              // MetaGPT는 3회 사용
+  strategy: "same-worker" | "escalate" | "alternative-worker";
+  feedbackMode: "error-only" | "full-context";  // 실패 정보 전달 방식
+}</code></pre>
+
+        <h4>D. Shared State Store — 구조화된 Artifact 관리</h4>
+
+        <pre><code>interface SharedStateStore {
+  // MetaGPT의 Shared Message Pool + Pub/Sub 개념 구현
+
+  publish(artifact: StructuredArtifact): void;
+  subscribe(role: WorkerRole, filter: ArtifactFilter): Observable&lt;StructuredArtifact&gt;;
+
+  // Artifact는 자연어가 아닌 구조화된 데이터
+  interface StructuredArtifact {
+    id: string;
+    producedBy: WorkerRole;
+    type: ArtifactType;             // "requirements" | "design" | "code" | "test_result"
+    schema: JSONSchema;             // self-describing
+    content: Record&lt;string, any&gt;;   // schema-validated content
+    metadata: {
+      timestamp: Date;
+      tokenCost: number;
+      version: number;
+      dependsOn: string[];          // DAG edge
+    };
+  }
+}</code></pre>
+
+        <h3>4.3 Communication Topology 선택 가이드</h3>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Topology</th>
+                    <th>적합 시나리오</th>
+                    <th>Worker 수</th>
+                    <th>복잡도</th>
+                    <th>비용 예측성</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Hub-and-Spoke</strong><br>(Single Orchestrator)</td>
+                    <td>대부분의 경우. 예측 가능성 우선</td>
+                    <td>2-5</td>
+                    <td>낮음</td>
+                    <td>중간</td>
+                </tr>
+                <tr>
+                    <td><strong>Hierarchical</strong><br>(Nested Orchestrators)</td>
+                    <td>대규모 소프트웨어 프로젝트, 복합 리서치</td>
+                    <td>5-20+</td>
+                    <td>높음</td>
+                    <td>낮음</td>
+                </tr>
+                <tr>
+                    <td><strong>Pipeline</strong><br>(Sequential + Verification)</td>
+                    <td>명확한 단계가 있는 작업 (MetaGPT 방식)</td>
+                    <td>3-7</td>
+                    <td>중간</td>
+                    <td>높음</td>
+                </tr>
+                <tr>
+                    <td><strong>Hybrid</strong><br>(Pipeline + Dynamic Branch)</td>
+                    <td>단계는 정해져 있으나 각 단계 내 병렬화 필요</td>
+                    <td>가변</td>
+                    <td>높음</td>
+                    <td>중간</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="callout">
+            <div class="callout-title">Recommended Starting Point</div>
+            <p>
+                첫 구현은 <strong>Hub-and-Spoke + Sequential Pipeline</strong> 조합을 권장합니다.
+                Orchestrator가 작업을 분해한 뒤, Worker들을 순차 실행하되 독립 작업은 병렬화합니다.
+                이후 병목 분석 결과에 따라 Hierarchical로 확장합니다.
+            </p>
+        </div>
+    </section>
+
+    <div class="section-divider"></div>
+
+    <!-- Section 5: AWS Implementation -->
+    <section id="aws-impl">
+        <h2>5. AWS 기반 구현 전략</h2>
+
+        <h3>5.1 AWS Service Mapping</h3>
+
+        <svg viewBox="0 0 900 750" xmlns="http://www.w3.org/2000/svg" style="width:100%; max-width:900px; margin:2rem auto; display:block;">
+          <defs>
+            <marker id="arrD8" markerWidth="8" markerHeight="6" refX="4" refY="6" orient="auto"><polygon points="0 0, 8 0, 4 6" fill="#ff9900"/></marker>
+            <marker id="arrR8" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#ff9900"/></marker>
+          </defs>
+          <rect x="0" y="0" width="900" height="750" rx="8" fill="#0d0d1a" stroke="#2a2a4a"/>
+          <text x="450" y="25" text-anchor="middle" fill="#ff9900" font-size="14" font-weight="bold" font-family="Inter, sans-serif">AWS ORCHESTRATOR-WORKER ARCHITECTURE</text>
+
+          <!-- CLIENT TIER -->
+          <rect x="50" y="40" width="800" height="55" rx="6" fill="#1e1e30" stroke="#a0a0b0"/>
+          <text x="100" y="60" fill="#eaeaea" font-size="11" font-weight="bold" font-family="Inter, sans-serif">CLIENT TIER</text>
+          <text x="200" y="80" fill="#a0a0b0" font-size="10" font-family="Inter, sans-serif">API Gateway (REST/WebSocket)</text>
+          <line x1="380" y1="76" x2="420" y2="76" stroke="#ff9900" stroke-width="1" marker-end="url(#arrR8)"/>
+          <text x="430" y="80" fill="#a0a0b0" font-size="10" font-family="Inter, sans-serif">Lambda Authorizer</text>
+          <line x1="560" y1="76" x2="600" y2="76" stroke="#ff9900" stroke-width="1" marker-end="url(#arrR8)"/>
+          <text x="610" y="80" fill="#a0a0b0" font-size="10" font-family="Inter, sans-serif">CloudFront</text>
+          <line x1="450" y1="95" x2="450" y2="115" stroke="#ff9900" stroke-width="1.5" marker-end="url(#arrD8)"/>
+
+          <!-- ORCHESTRATION TIER -->
+          <rect x="50" y="115" width="800" height="395" rx="8" fill="none" stroke="#ff9900" stroke-width="1.5"/>
+          <text x="100" y="135" fill="#ff9900" font-size="11" font-weight="bold" font-family="Inter, sans-serif">ORCHESTRATION TIER</text>
+
+          <!-- Step Functions box -->
+          <rect x="80" y="145" width="740" height="345" rx="6" fill="rgba(30,30,48,0.5)" stroke="#2196f3" stroke-dasharray="4,3"/>
+          <text x="130" y="165" fill="#2196f3" font-size="10" font-weight="bold" font-family="Inter, sans-serif">AWS Step Functions (Express or Standard)</text>
+
+          <!-- Task Input -->
+          <rect x="120" y="180" width="130" height="50" rx="5" fill="#0f3460" stroke="#61afef"/>
+          <text x="185" y="200" text-anchor="middle" fill="#eaeaea" font-size="10" font-family="Inter, sans-serif">Task Input</text>
+          <text x="185" y="218" text-anchor="middle" fill="#a0a0b0" font-size="9" font-family="Inter, sans-serif">Validation</text>
+
+          <!-- Bedrock Orchestrator -->
+          <rect x="300" y="180" width="170" height="50" rx="5" fill="#0f3460" stroke="#ff9900" stroke-width="1.5"/>
+          <text x="385" y="200" text-anchor="middle" fill="#ff9900" font-size="10" font-weight="bold" font-family="Inter, sans-serif">Bedrock (Opus 4)</text>
+          <text x="385" y="218" text-anchor="middle" fill="#a0a0b0" font-size="9" font-family="Inter, sans-serif">Orchestrator Invocation</text>
+
+          <!-- Dynamic Map -->
+          <rect x="520" y="180" width="170" height="50" rx="5" fill="#0f3460" stroke="#e94560"/>
+          <text x="605" y="200" text-anchor="middle" fill="#e94560" font-size="10" font-family="Inter, sans-serif">Dynamic Map State</text>
+          <text x="605" y="218" text-anchor="middle" fill="#a0a0b0" font-size="9" font-family="Inter, sans-serif">Fan-out to Workers</text>
+
+          <!-- Arrows Task → Bedrock → Map -->
+          <line x1="250" y1="205" x2="300" y2="205" stroke="#ff9900" stroke-width="1.2" marker-end="url(#arrR8)"/>
+          <line x1="470" y1="205" x2="520" y2="205" stroke="#ff9900" stroke-width="1.2" marker-end="url(#arrR8)"/>
+
+          <!-- Fan-out arrows -->
+          <line x1="555" y1="230" x2="240" y2="285" stroke="#e94560" stroke-width="1.2" marker-end="url(#arrD8)"/>
+          <line x1="605" y1="230" x2="430" y2="285" stroke="#e94560" stroke-width="1.2" marker-end="url(#arrD8)"/>
+          <line x1="655" y1="230" x2="620" y2="285" stroke="#e94560" stroke-width="1.2" marker-end="url(#arrD8)"/>
+
+          <!-- Worker Lambdas -->
+          <rect x="160" y="285" width="155" height="50" rx="5" fill="#0f3460" stroke="#61afef"/>
+          <text x="237" y="305" text-anchor="middle" fill="#eaeaea" font-size="10" font-family="Inter, sans-serif">Worker Lambda A</text>
+          <text x="237" y="323" text-anchor="middle" fill="#2196f3" font-size="9" font-family="Inter, sans-serif">(Sonnet)</text>
+
+          <rect x="350" y="285" width="155" height="50" rx="5" fill="#0f3460" stroke="#61afef"/>
+          <text x="427" y="305" text-anchor="middle" fill="#eaeaea" font-size="10" font-family="Inter, sans-serif">Worker Lambda B</text>
+          <text x="427" y="323" text-anchor="middle" fill="#2196f3" font-size="9" font-family="Inter, sans-serif">(Sonnet)</text>
+
+          <rect x="540" y="285" width="155" height="50" rx="5" fill="#0f3460" stroke="#61afef"/>
+          <text x="617" y="305" text-anchor="middle" fill="#eaeaea" font-size="10" font-family="Inter, sans-serif">Worker Lambda N</text>
+          <text x="617" y="323" text-anchor="middle" fill="#4caf50" font-size="9" font-family="Inter, sans-serif">(Haiku)</text>
+
+          <!-- Arrows workers → verification -->
+          <line x1="237" y1="335" x2="237" y2="365" stroke="#61afef" stroke-width="1" marker-end="url(#arrD8)"/>
+          <line x1="427" y1="335" x2="427" y2="365" stroke="#61afef" stroke-width="1" marker-end="url(#arrD8)"/>
+          <line x1="617" y1="335" x2="617" y2="365" stroke="#61afef" stroke-width="1" marker-end="url(#arrD8)"/>
+
+          <!-- Verification Gate -->
+          <rect x="160" y="365" width="535" height="45" rx="5" fill="#1e1e30" stroke="#ff9800"/>
+          <text x="427" y="385" text-anchor="middle" fill="#ff9800" font-size="10" font-weight="bold" font-family="Inter, sans-serif">Verification Gate</text>
+          <text x="427" y="401" text-anchor="middle" fill="#a0a0b0" font-size="9" font-family="Inter, sans-serif">Lambda: Schema Validation + Execution Check</text>
+          <line x1="427" y1="410" x2="427" y2="435" stroke="#ff9900" stroke-width="1.2" marker-end="url(#arrD8)"/>
+
+          <!-- Result Synthesis -->
+          <rect x="230" y="435" width="400" height="45" rx="5" fill="#0f3460" stroke="#ff9900" stroke-width="1.5"/>
+          <text x="430" y="455" text-anchor="middle" fill="#ff9900" font-size="10" font-weight="bold" font-family="Inter, sans-serif">Result Synthesis</text>
+          <text x="430" y="471" text-anchor="middle" fill="#a0a0b0" font-size="9" font-family="Inter, sans-serif">Bedrock Opus 4: Aggregate &amp; Respond</text>
+
+          <!-- Arrow to Data tier -->
+          <line x1="450" y1="510" x2="450" y2="535" stroke="#ff9900" stroke-width="1.5" marker-end="url(#arrD8)"/>
+
+          <!-- DATA & STATE TIER -->
+          <rect x="50" y="535" width="800" height="200" rx="8" fill="none" stroke="#4caf50" stroke-width="1.5"/>
+          <text x="100" y="555" fill="#4caf50" font-size="11" font-weight="bold" font-family="Inter, sans-serif">DATA &amp; STATE TIER</text>
+
+          <!-- Row 1: 4 services -->
+          <rect x="80" y="570" width="160" height="55" rx="5" fill="#0f3460" stroke="#61afef"/>
+          <text x="160" y="590" text-anchor="middle" fill="#eaeaea" font-size="10" font-weight="bold" font-family="Inter, sans-serif">DynamoDB</text>
+          <text x="160" y="608" text-anchor="middle" fill="#a0a0b0" font-size="9" font-family="Inter, sans-serif">State &amp; Sessions</text>
+
+          <rect x="260" y="570" width="160" height="55" rx="5" fill="#0f3460" stroke="#61afef"/>
+          <text x="340" y="590" text-anchor="middle" fill="#eaeaea" font-size="10" font-weight="bold" font-family="Inter, sans-serif">S3</text>
+          <text x="340" y="608" text-anchor="middle" fill="#a0a0b0" font-size="9" font-family="Inter, sans-serif">Artifacts &amp; Large Outputs</text>
+
+          <rect x="440" y="570" width="160" height="55" rx="5" fill="#0f3460" stroke="#61afef"/>
+          <text x="520" y="590" text-anchor="middle" fill="#eaeaea" font-size="10" font-weight="bold" font-family="Inter, sans-serif">EventBridge</text>
+          <text x="520" y="608" text-anchor="middle" fill="#a0a0b0" font-size="9" font-family="Inter, sans-serif">Async Events</text>
+
+          <rect x="620" y="570" width="160" height="55" rx="5" fill="#0f3460" stroke="#61afef"/>
+          <text x="700" y="590" text-anchor="middle" fill="#eaeaea" font-size="10" font-weight="bold" font-family="Inter, sans-serif">CloudWatch</text>
+          <text x="700" y="608" text-anchor="middle" fill="#a0a0b0" font-size="9" font-family="Inter, sans-serif">Observability</text>
+
+          <!-- Row 2: 2 services -->
+          <rect x="80" y="645" width="160" height="55" rx="5" fill="#0f3460" stroke="#4caf50"/>
+          <text x="160" y="665" text-anchor="middle" fill="#4caf50" font-size="10" font-weight="bold" font-family="Inter, sans-serif">Bedrock KB</text>
+          <text x="160" y="683" text-anchor="middle" fill="#a0a0b0" font-size="9" font-family="Inter, sans-serif">Knowledge Base (RAG)</text>
+
+          <rect x="260" y="645" width="160" height="55" rx="5" fill="#0f3460" stroke="#4caf50"/>
+          <text x="340" y="665" text-anchor="middle" fill="#4caf50" font-size="10" font-weight="bold" font-family="Inter, sans-serif">OpenSearch</text>
+          <text x="340" y="683" text-anchor="middle" fill="#a0a0b0" font-size="9" font-family="Inter, sans-serif">Semantic Search</text>
+        </svg>
+
+        <h3>5.2 Service 선택 근거</h3>
+
+        <table>
+            <thead>
+                <tr><th>Component</th><th>AWS Service</th><th>선택 근거</th><th>대안</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Orchestration Engine</td>
+                    <td><strong>Step Functions</strong></td>
+                    <td>Dynamic Map State로 가변 Worker fan-out 지원. 내장 retry/error handling. 실행 이력 시각화.</td>
+                    <td>ECS Task (장기 실행), Bedrock Agents (관리형)</td>
+                </tr>
+                <tr>
+                    <td>Orchestrator LLM</td>
+                    <td><strong>Bedrock (Claude Opus 4)</strong></td>
+                    <td>가장 강력한 추론 능력. Task decomposition 품질이 전체 성능 결정.</td>
+                    <td>Sonnet (비용 우선 시)</td>
+                </tr>
+                <tr>
+                    <td>Worker LLM</td>
+                    <td><strong>Bedrock (Claude Sonnet 4)</strong></td>
+                    <td>실행 작업에 최적. 비용 대비 성능 균형.</td>
+                    <td>Haiku (단순 작업), Opus (고복잡도 작업)</td>
+                </tr>
+                <tr>
+                    <td>Worker Compute</td>
+                    <td><strong>Lambda</strong></td>
+                    <td>Stateless 실행. Auto-scaling. 동시 실행에 이상적.</td>
+                    <td>ECS Fargate (장시간/대용량), EC2 (GPU 필요 시)</td>
+                </tr>
+                <tr>
+                    <td>State Management</td>
+                    <td><strong>DynamoDB</strong></td>
+                    <td>Low-latency KV store. Session/task state 추적. TTL로 자동 정리.</td>
+                    <td>ElastiCache (극저지연)</td>
+                </tr>
+                <tr>
+                    <td>Artifact Storage</td>
+                    <td><strong>S3</strong></td>
+                    <td>대용량 구조화 산출물 저장. Versioning으로 변경 이력 추적.</td>
+                    <td>DynamoDB (소량 데이터)</td>
+                </tr>
+                <tr>
+                    <td>Async Communication</td>
+                    <td><strong>EventBridge</strong></td>
+                    <td>Pub/Sub 패턴 구현. Worker 간 loose coupling.</td>
+                    <td>SQS (point-to-point), SNS (fan-out)</td>
+                </tr>
+                <tr>
+                    <td>RAG / Knowledge Base</td>
+                    <td><strong>Bedrock Knowledge Bases</strong></td>
+                    <td>관리형 RAG. Worker별 다른 knowledge base 연결 가능.</td>
+                    <td>OpenSearch + Custom embedding pipeline</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>5.3 Step Functions State Machine 설계</h3>
+
+        <pre><code>{
+  "Comment": "Orchestrator-Worker Pattern",
+  "StartAt": "AnalyzeAndDecompose",
+  "States": {
+    "AnalyzeAndDecompose": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::bedrock:invokeModel",
+      "Parameters": {
+        "ModelId": "anthropic.claude-opus-4-6-v1",
+        "Body": {
+          "system": "You are a task orchestrator. Analyze the input and decompose...",
+          "messages": [{"role": "user", "content.$": "$.taskInput"}],
+          "max_tokens": 4096
+        }
+      },
+      "ResultPath": "$.decomposition",
+      "Next": "ValidateDecomposition"
+    },
+
+    "ValidateDecomposition": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:...:validateDecomposition",
+      "Comment": "Schema-validate the orchestrator's plan before execution",
+      "Parameters": {
+        "plan.$": "$.decomposition",
+        "budgetRemaining.$": "$.budget"
+      },
+      "Next": "ExecuteWorkers",
+      "Catch": [{
+        "ErrorEquals": ["ValidationError"],
+        "Next": "ReplanWithFeedback"
+      }]
+    },
+
+    "ExecuteWorkers": {
+      "Type": "Map",
+      "ItemsPath": "$.decomposition.subtasks",
+      "MaxConcurrency": 5,
+      "ItemProcessor": {
+        "ProcessorConfig": {
+          "Mode": "DISTRIBUTED",
+          "ExecutionType": "STANDARD"
+        },
+        "StartAt": "RouteToWorker",
+        "States": {
+          "RouteToWorker": {
+            "Type": "Choice",
+            "Choices": [
+              {
+                "Variable": "$.workerType",
+                "StringEquals": "researcher",
+                "Next": "InvokeResearchWorker"
+              },
+              {
+                "Variable": "$.workerType",
+                "StringEquals": "coder",
+                "Next": "InvokeCodeWorker"
+              }
+            ],
+            "Default": "InvokeGenericWorker"
+          },
+          "InvokeResearchWorker": {
+            "Type": "Task",
+            "Resource": "arn:aws:lambda:...:researchWorker",
+            "Retry": [{"ErrorEquals": ["ThrottlingException"], "MaxAttempts": 3}],
+            "Next": "VerifyOutput"
+          },
+          "InvokeCodeWorker": {
+            "Type": "Task",
+            "Resource": "arn:aws:lambda:...:codeWorker",
+            "Next": "VerifyOutput"
+          },
+          "InvokeGenericWorker": {
+            "Type": "Task",
+            "Resource": "arn:aws:lambda:...:genericWorker",
+            "Next": "VerifyOutput"
+          },
+          "VerifyOutput": {
+            "Type": "Task",
+            "Resource": "arn:aws:lambda:...:verificationGate",
+            "Retry": [{"ErrorEquals": ["VerificationFailed"], "MaxAttempts": 2}],
+            "End": true
+          }
+        }
+      },
+      "ResultPath": "$.workerResults",
+      "Next": "SynthesizeResults"
+    },
+
+    "SynthesizeResults": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::bedrock:invokeModel",
+      "Parameters": {
+        "ModelId": "anthropic.claude-opus-4-6-v1",
+        "Body": {
+          "system": "Synthesize the following worker outputs into a coherent response...",
+          "messages": [{"role": "user", "content.$": "States.Format('{}', $.workerResults)"}],
+          "max_tokens": 8192
+        }
+      },
+      "End": true
+    },
+
+    "ReplanWithFeedback": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::bedrock:invokeModel",
+      "Parameters": {
+        "ModelId": "anthropic.claude-opus-4-6-v1",
+        "Body": {
+          "system": "Your previous plan was rejected. Revise based on feedback...",
+          "messages": [{"role": "user", "content.$": "$.validationError"}]
+        }
+      },
+      "ResultPath": "$.decomposition",
+      "Next": "ValidateDecomposition"
+    }
+  }
+}</code></pre>
+
+        <h3>5.4 Worker Lambda 구현 예시</h3>
+
+        <pre><code>// worker-research.ts — Research Worker Lambda
+import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
+import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
+
+const bedrock = new BedrockRuntimeClient({ region: "us-east-1" });
+const dynamo = new DynamoDBClient({ region: "us-east-1" });
+
+interface WorkerInput {
+  taskId: string;
+  sessionId: string;
+  instruction: string;
+  inputArtifacts: Array<{ key: string; content: string }>;
+  outputSchema: Record&lt;string, any&gt;;
+}
+
+interface WorkerOutput {
+  taskId: string;
+  workerRole: string;
+  result: Record&lt;string, any&gt;;
+  metadata: {
+    tokensUsed: number;
+    latencyMs: number;
+    model: string;
+  };
+}
+
+export async function handler(event: WorkerInput): Promise&lt;WorkerOutput&gt; {
+  const startTime = Date.now();
+
+  // 1. Context Assembly — 선행 artifact를 컨텍스트에 포함
+  const contextBlock = event.inputArtifacts
+    .map(a => `<artifact key="${a.key}">\n${a.content}\n</artifact>`)
+    .join("\n");
+
+  // 2. LLM Invocation — 역할 특화 프롬프트
+  const response = await bedrock.send(new InvokeModelCommand({
+    modelId: "anthropic.claude-sonnet-4-6-20250514-v1:0",
+    contentType: "application/json",
+    body: JSON.stringify({
+      anthropic_version: "bedrock-2023-05-31",
+      system: `You are a research specialist. Your output MUST conform to this JSON schema:
+${JSON.stringify(event.outputSchema, null, 2)}
+
+Rules:
+- Only return factual, verifiable information
+- Cite sources where possible
+- If uncertain, explicitly state uncertainty level
+- Never fabricate data`,
+      messages: [{
+        role: "user",
+        content: `Context from prior steps:\n${contextBlock}\n\nTask: ${event.instruction}`
+      }],
+      max_tokens: 4096,
+      temperature: 0.2  // Research는 낮은 temperature
+    })
+  }));
+
+  const body = JSON.parse(new TextDecoder().decode(response.body));
+  const resultText = body.content[0].text;
+
+  // 3. Output Parsing & Schema Validation
+  const result = JSON.parse(resultText);
+  // Schema validation은 Verification Gate에서 수행
+
+  // 4. State 기록
+  await dynamo.send(new PutItemCommand({
+    TableName: "orchestrator-artifacts",
+    Item: {
+      sessionId: { S: event.sessionId },
+      taskId: { S: event.taskId },
+      workerRole: { S: "researcher" },
+      output: { S: JSON.stringify(result) },
+      timestamp: { N: String(Date.now()) },
+      ttl: { N: String(Math.floor(Date.now() / 1000) + 86400) }
+    }
+  }));
+
+  return {
+    taskId: event.taskId,
+    workerRole: "researcher",
+    result,
+    metadata: {
+      tokensUsed: body.usage.input_tokens + body.usage.output_tokens,
+      latencyMs: Date.now() - startTime,
+      model: "claude-sonnet-4-6"
+    }
+  };
+}</code></pre>
+
+        <h3>5.5 비용 모델링</h3>
+
+        <div class="callout">
+            <div class="callout-title">Cost Estimation Framework</div>
+            <p>Orchestrator-Worker 패턴의 비용은 다음과 같이 분해됩니다:</p>
+        </div>
+
+        <pre><code>// Cost Model
+interface CostModel {
+  // Per-invocation costs
+  orchestratorCost: {
+    planning: InputTokens × $0.015/1K + OutputTokens × $0.075/1K;   // Opus
+    synthesis: InputTokens × $0.015/1K + OutputTokens × $0.075/1K;  // Opus
+  };
+
+  workerCost: {
+    perWorker: InputTokens × $0.003/1K + OutputTokens × $0.015/1K;  // Sonnet
+    numWorkers: Dynamic(1-N);
+  };
+
+  verificationCost: {
+    schemaValidation: ~0 (Lambda compute only);
+    executionTest: Lambda duration × $0.0000166667/ms;
+    llmJudge: InputTokens × $0.001/1K + OutputTokens × $0.005/1K;  // Haiku
+  };
+
+  infrastructureCost: {
+    stepFunctions: $0.025/1000 state transitions;
+    dynamoDB: $1.25/million writes;
+    lambda: negligible at this scale;
+  };
+}
+
+// Example: 3-worker task decomposition
+// Orchestrator planning: ~2K input + ~1K output = $0.030 + $0.075 = $0.105
+// 3 Workers (Sonnet): ~3K input + ~2K output each = 3 × ($0.009 + $0.030) = $0.117
+// Synthesis: ~4K input + ~2K output = $0.060 + $0.150 = $0.210
+// Verification: 3 × Haiku judge = ~$0.003
+// Infrastructure: ~$0.001
+// ─────────────────────────────
+// Total per request: ~$0.436
+//
+// vs Single LLM call (Opus): ~2K input + ~4K output = $0.030 + $0.300 = $0.330
+//
+// Delta: +32% cost for significantly higher quality & reliability</code></pre>
+
+        <h3>5.6 Observability & Monitoring</h3>
+
+        <pre><code>// CloudWatch Custom Metrics
+const metrics = {
+  // Performance
+  "Orchestrator/DecompositionLatency": { unit: "Milliseconds" },
+  "Worker/ExecutionLatency": { unit: "Milliseconds", dimensions: ["WorkerRole"] },
+  "Pipeline/EndToEndLatency": { unit: "Milliseconds" },
+
+  // Quality
+  "Verification/PassRate": { unit: "Percent", dimensions: ["WorkerRole"] },
+  "Verification/RetryCount": { unit: "Count" },
+  "Orchestrator/ReplanCount": { unit: "Count" },
+
+  // Cost
+  "TokenUsage/Input": { unit: "Count", dimensions: ["Model", "WorkerRole"] },
+  "TokenUsage/Output": { unit: "Count", dimensions: ["Model", "WorkerRole"] },
+  "Cost/PerRequest": { unit: "None" },  // USD value
+
+  // Throughput
+  "Workers/ConcurrentExecutions": { unit: "Count" },
+  "Tasks/Completed": { unit: "Count" },
+  "Tasks/Failed": { unit: "Count" }
+};
+
+// Alarm Thresholds
+const alarms = {
+  "HighReplanRate": { threshold: 0.3, period: 300 },      // 30% replan = bad decomposition
+  "HighRetryRate": { threshold: 0.5, period: 300 },       // 50% retry = worker quality issue
+  "BudgetExceeded": { threshold: budgetPerRequest * 2 },  // 2x budget = runaway loop
+  "LatencyP99": { threshold: 60000 }                       // 60s timeout approaching
+};</code></pre>
+    </section>
+
+    <div class="section-divider"></div>
+
+    <!-- Section 6: Tradeoffs -->
+    <section id="tradeoffs">
+        <h2>6. Architecture Trade-offs & Decision Matrix</h2>
+
+        <h3>6.1 언제 Orchestrator-Worker를 사용하는가?</h3>
+
+        <div class="highlight-box">
+            <h4>Use When (적용 조건):</h4>
+            <ul>
+                <li>작업의 하위 구성요소를 미리 결정할 수 없을 때 (동적 분해 필요)</li>
+                <li>각 하위 작업이 서로 다른 전문성/도구/지식을 요구할 때</li>
+                <li>품질이 비용보다 중요할 때 (MetaGPT: +62% 토큰, -67% 인간 수정)</li>
+                <li>중간 결과의 검증이 가능하고 의미있을 때</li>
+                <li>단일 LLM 호출로는 컨텍스트 윈도우가 부족하거나 품질이 떨어질 때</li>
+            </ul>
+        </div>
+
+        <div class="highlight-box" style="border-color: var(--warning);">
+            <h4>Don't Use When (비적용 조건):</h4>
+            <ul>
+                <li>단일 LLM 호출로 충분한 품질이 나올 때 (Anthropic: "start simple")</li>
+                <li>작업 분해가 정적이고 예측 가능할 때 → Parallelization으로 충분</li>
+                <li>Latency가 최우선 제약일 때 (Orchestrator overhead 불가피)</li>
+                <li>비용을 예측 가능하게 고정해야 할 때 (동적 Worker 수 = 가변 비용)</li>
+                <li>시스템의 실패 모드를 완전히 열거해야 할 때 (non-deterministic)</li>
+            </ul>
+        </div>
+
+        <h3>6.2 핵심 Trade-off Matrix</h3>
+
+        <table>
+            <thead>
+                <tr><th>Dimension</th><th>Orchestrator-Worker</th><th>Single Agent</th><th>Fixed Pipeline</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Quality</strong></td>
+                    <td>최고 (MetaGPT: 3.75/4.0)</td>
+                    <td>낮음 (1.0)</td>
+                    <td>중상 (2.25)</td>
+                </tr>
+                <tr>
+                    <td><strong>Cost</strong></td>
+                    <td>높음 (가변)</td>
+                    <td>최저 (고정)</td>
+                    <td>중간 (고정)</td>
+                </tr>
+                <tr>
+                    <td><strong>Latency</strong></td>
+                    <td>높음 (sequential bottleneck)</td>
+                    <td>최저</td>
+                    <td>중간</td>
+                </tr>
+                <tr>
+                    <td><strong>Predictability</strong></td>
+                    <td>낮음</td>
+                    <td>높음</td>
+                    <td>높음</td>
+                </tr>
+                <tr>
+                    <td><strong>Adaptability</strong></td>
+                    <td>최고</td>
+                    <td>낮음</td>
+                    <td>없음</td>
+                </tr>
+                <tr>
+                    <td><strong>Debuggability</strong></td>
+                    <td>중간 (structured artifacts 도움)</td>
+                    <td>높음</td>
+                    <td>높음</td>
+                </tr>
+                <tr>
+                    <td><strong>Scalability</strong></td>
+                    <td>높음 (Worker 독립 확장)</td>
+                    <td>제한적</td>
+                    <td>단계별 확장</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>6.3 Model Selection Strategy</h3>
+
+        <div class="callout">
+            <div class="callout-title">Tiered Model Allocation</div>
+            <p>
+                모든 컴포넌트에 동일 모델을 사용하는 것은 비효율적입니다.
+                각 역할의 인지적 요구 수준에 맞춰 모델을 차등 배치합니다:
+            </p>
+        </div>
+
+        <table>
+            <thead>
+                <tr><th>Component</th><th>Cognitive Demand</th><th>Recommended Model</th><th>Rationale</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Orchestrator (Planning)</td>
+                    <td>매우 높음</td>
+                    <td>Claude Opus 4</td>
+                    <td>Task decomposition 품질이 전체 성능 결정. 가장 강력한 추론 필요.</td>
+                </tr>
+                <tr>
+                    <td>Orchestrator (Synthesis)</td>
+                    <td>높음</td>
+                    <td>Claude Opus 4</td>
+                    <td>다수 Worker 결과를 일관된 산출물로 통합. 높은 추론 필요.</td>
+                </tr>
+                <tr>
+                    <td>Worker (Complex: Code, Analysis)</td>
+                    <td>중-높음</td>
+                    <td>Claude Sonnet 4</td>
+                    <td>실행 품질이 중요하나 범위가 좁아 Sonnet으로 충분.</td>
+                </tr>
+                <tr>
+                    <td>Worker (Simple: Format, Extract)</td>
+                    <td>낮음</td>
+                    <td>Claude Haiku 4</td>
+                    <td>단순 변환 작업. 속도와 비용 최적화.</td>
+                </tr>
+                <tr>
+                    <td>Verification (LLM Judge)</td>
+                    <td>중간</td>
+                    <td>Claude Haiku 4</td>
+                    <td>Pass/Fail 판단. 빠른 응답 필요.</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>6.4 Failure Mode Analysis</h3>
+
+        <table>
+            <thead>
+                <tr><th>Failure Mode</th><th>Impact</th><th>Mitigation</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Orchestrator가 작업을 잘못 분해</td>
+                    <td>전체 결과 품질 저하</td>
+                    <td>Decomposition validation gate + Replan loop (max 2회)</td>
+                </tr>
+                <tr>
+                    <td>Worker가 schema를 준수하지 않음</td>
+                    <td>Synthesis 실패</td>
+                    <td>Strict JSON mode + Schema validation + Retry with error feedback</td>
+                </tr>
+                <tr>
+                    <td>Worker 간 결과 모순</td>
+                    <td>Synthesis 시 혼란</td>
+                    <td>Synthesis prompt에 conflict resolution 지시 포함</td>
+                </tr>
+                <tr>
+                    <td>Budget/timeout 초과</td>
+                    <td>미완성 결과</td>
+                    <td>Progressive delivery (partial results 반환) + Budget monitoring per step</td>
+                </tr>
+                <tr>
+                    <td>Cascading hallucination</td>
+                    <td>환각 증폭</td>
+                    <td>MetaGPT 교훈: 구조화 통신 + Execution verification gate</td>
+                </tr>
+                <tr>
+                    <td>Bedrock throttling</td>
+                    <td>Worker 실패</td>
+                    <td>Exponential backoff + Cross-region fallback + Token budget pacing</td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <div class="section-divider"></div>
+
+    <!-- Section 7: Production Readiness -->
+    <section id="production">
+        <h2>7. Production Readiness Checklist</h2>
+
+        <h3>7.1 Implementation Phases</h3>
+
+        <div class="impl-step" data-step="1">
+            <h4>Phase 1: Single Orchestrator + 2 Workers (PoC)</h4>
+            <p><strong>Duration:</strong> 2-3 weeks</p>
+            <p><strong>Goal:</strong> End-to-end 동작 증명. 가장 가치 있는 use case 1개로 시작.</p>
+            <ul>
+                <li>Step Functions state machine 기본 구조</li>
+                <li>Orchestrator: Opus로 task decomposition</li>
+                <li>Worker 2개: 가장 명확한 역할 분리 (예: researcher + coder)</li>
+                <li>Schema validation gate만 구현</li>
+                <li>CloudWatch 기본 메트릭</li>
+            </ul>
+        </div>
+
+        <div class="flow-arrow">▼</div>
+
+        <div class="impl-step" data-step="2">
+            <h4>Phase 2: Verification & Reliability (Production MVP)</h4>
+            <p><strong>Duration:</strong> 3-4 weeks</p>
+            <p><strong>Goal:</strong> 검증 게이트 완성. 예측 가능한 품질 보장.</p>
+            <ul>
+                <li>Execution verification gate (코드 실행 검증)</li>
+                <li>LLM Judge verification (Haiku 기반)</li>
+                <li>Retry/Replan 로직 완성</li>
+                <li>Budget cap & timeout enforcement</li>
+                <li>DynamoDB artifact store + S3 대용량 산출물</li>
+                <li>Error handling & partial result delivery</li>
+            </ul>
+        </div>
+
+        <div class="flow-arrow">▼</div>
+
+        <div class="impl-step" data-step="3">
+            <h4>Phase 3: Optimization & Scale (Production)</h4>
+            <p><strong>Duration:</strong> 4-6 weeks</p>
+            <p><strong>Goal:</strong> 비용 최적화, 관찰 가능성, 운영 준비.</p>
+            <ul>
+                <li>Prompt caching (Bedrock) 적용 — 반복 호출 비용 절감</li>
+                <li>Worker pool 확장 (3-5 specialized workers)</li>
+                <li>Tiered model allocation (Opus/Sonnet/Haiku 차등 배치)</li>
+                <li>Full observability dashboard (비용, 품질, latency)</li>
+                <li>A/B testing framework (single-agent vs orchestrator 비교)</li>
+                <li>Human-in-the-loop 연동 (고위험 결정)</li>
+            </ul>
+        </div>
+
+        <div class="flow-arrow">▼</div>
+
+        <div class="impl-step" data-step="4">
+            <h4>Phase 4: Advanced Patterns (Iteration)</h4>
+            <p><strong>Duration:</strong> Ongoing</p>
+            <p><strong>Goal:</strong> 고급 패턴 도입. 성능 경계 확장.</p>
+            <ul>
+                <li>Hierarchical orchestration (sub-orchestrators)</li>
+                <li>Evaluator-Optimizer loop 통합 (iterative refinement)</li>
+                <li>Worker 자동 선택 (embedding 기반 routing)</li>
+                <li>Multi-modal workers (vision, audio)</li>
+                <li>Fine-tuned worker models (특정 도메인)</li>
+            </ul>
+        </div>
+
+        <h3>7.2 Critical Success Factors</h3>
+
+        <div class="comparison-grid">
+            <div class="comparison-card">
+                <h4>1. Tool Schema Quality</h4>
+                <p>Anthropic이 강조: "도구 최적화에 프롬프트 튜닝보다 더 많은 시간을 투자하라." Worker가 사용하는 tool의 description, parameter schema, error handling이 전체 성능의 병목.</p>
+            </div>
+            <div class="comparison-card">
+                <h4>2. Structured Communication</h4>
+                <p>MetaGPT가 증명: 자연어 → 구조화 포맷 전환만으로 executability 2.25→3.75. Worker 간 통신을 반드시 JSON Schema로 강제.</p>
+            </div>
+            <div class="comparison-card">
+                <h4>3. Verification Gates</h4>
+                <p>실행 검증만으로 +4.2~5.4%p 성능 향상. 모든 Worker output에 최소 schema validation, 가능하면 execution test 적용.</p>
+            </div>
+            <div class="comparison-card">
+                <h4>4. Budget & Timeout Discipline</h4>
+                <p>동적 분해의 최대 리스크는 비용 폭발. 반드시 per-request budget cap, per-worker timeout, total iteration limit 설정.</p>
+            </div>
+        </div>
+
+        <h3>7.3 Evaluation Framework</h3>
+
+        <pre><code>// A/B Test: Orchestrator-Worker vs Baseline
+interface EvaluationMetrics {
+  // Quality Metrics
+  taskCompletionRate: number;        // 작업 성공적 완료 비율
+  outputQualityScore: number;        // LLM Judge or Human eval (1-5)
+  humanRevisionCount: number;        // 사람이 수정해야 하는 횟수
+
+  // Efficiency Metrics
+  totalTokensUsed: number;           // 총 토큰 소비
+  endToEndLatencyMs: number;         // 전체 소요 시간
+  costPerRequest: number;            // USD per request
+
+  // Reliability Metrics
+  verificationPassRate: number;      // 첫 시도 검증 통과율
+  retryRate: number;                 // 재시도 비율
+  replanRate: number;                // 재계획 비율
+
+  // Comparison
+  qualityPerDollar: number;          // quality / cost (핵심 ROI 지표)
+  qualityPerSecond: number;          // quality / latency
+}</code></pre>
+
+        <h3>7.4 핵심 원칙 요약</h3>
+
+        <div class="highlight-box">
+            <h4>From Theory to Production: 4가지 핵심 교훈</h4>
+            <ol style="line-height: 2.2;">
+                <li><strong>Anthropic:</strong> "Start simple, add complexity only when simple fails" — Phase 1에서 baseline 측정 후 점진적 확장</li>
+                <li><strong>Andrew Ng:</strong> "Focus beats capacity" — Worker는 하나의 역할에만 집중. Multi-tool worker보다 single-purpose worker가 우수</li>
+                <li><strong>LangChain:</strong> "Supervisor-as-tool-user" — Worker를 tool로 등록하면 기존 tool-use 메커니즘 재활용 가능. 새 인프라 불필요</li>
+                <li><strong>MetaGPT:</strong> "Structured artifacts + execution verification = hallucination prevention" — 이 두 가지가 품질의 80%를 결정</li>
+            </ol>
+        </div>
+
+    </section>
+
+    <div class="section-divider"></div>
+
+    <!-- References -->
+    <section>
+        <h2>References</h2>
+        <ol>
+            <li>Anthropic. "Building Effective Agents." Dec 2024. <a href="https://www.anthropic.com/engineering/building-effective-agents" style="color: var(--info);">anthropic.com/engineering/building-effective-agents</a></li>
+            <li>Andrew Ng. "Agentic Design Patterns Part 5: Multi-Agent Collaboration." DeepLearning.AI. <a href="https://www.deeplearning.ai/the-batch/agentic-design-patterns-part-5-multi-agent-collaboration/" style="color: var(--info);">deeplearning.ai/the-batch/...</a></li>
+            <li>LangChain. "LangGraph Multi-Agent Workflows." <a href="https://www.langchain.com/blog/langgraph-multi-agent-workflows" style="color: var(--info);">langchain.com/blog/langgraph-multi-agent-workflows</a></li>
+            <li>Hong, S. et al. "MetaGPT: Meta Programming for A Multi-Agent Collaborative Framework." arXiv:2308.00352, 2023. <a href="https://arxiv.org/abs/2308.00352" style="color: var(--info);">arxiv.org/abs/2308.00352</a></li>
+        </ol>
+    </section>
+
+</div>
+
+</body>
+</html>

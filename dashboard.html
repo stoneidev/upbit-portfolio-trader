@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <script>
+        window.onerror = function(message, source, lineno, colno, error) {
+            const errDiv = document.createElement('div');
+            errDiv.style.position = 'fixed';
+            errDiv.style.top = '0';
+            errDiv.style.left = '0';
+            errDiv.style.width = '100vw';
+            errDiv.style.height = '100vh';
+            errDiv.style.background = 'rgba(239, 68, 68, 0.95)';
+            errDiv.style.color = '#ffffff';
+            errDiv.style.padding = '40px';
+            errDiv.style.zIndex = '999999';
+            errDiv.style.fontFamily = 'monospace';
+            errDiv.style.fontSize = '16px';
+            errDiv.style.overflow = 'auto';
+            errDiv.style.lineHeight = '1.5';
+            
+            errDiv.innerHTML = `
+                <h1 style="margin-bottom: 20px; font-size: 24px;">🚨 [전역 자바스크립트 에러 감지]</h1>
+                <p><strong>Message:</strong> ${message}</p>
+                <p><strong>Source:</strong> ${source}</p>
+                <p><strong>Line:</strong> ${lineno} | <strong>Column:</strong> ${colno}</p>
+                <hr style="margin: 20px 0; border: none; border-top: 1px solid rgba(255,255,255,0.3);">
+                <pre style="white-space: pre-wrap;">${error ? error.stack : 'No stack trace available'}</pre>
+            `;
+            document.body.appendChild(errDiv);
+            return false;
+        };
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XRP-ETH Portfolio Trader Dashboard</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Lightweight Charts CDN -->
+    <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+    
+    <style>
+        :root {
+            --bg-color: #080b11;
+            --card-bg: rgba(17, 24, 39, 0.6);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --accent-blue: #3b82f6;
+            --accent-purple: #8b5cf6;
+            --neon-green-glow: 0 0 20px rgba(16, 185, 129, 0.35);
+            --neon-red-glow: 0 0 20px rgba(239, 68, 68, 0.35);
+            --neon-blue-glow: 0 0 20px rgba(59, 130, 246, 0.35);
+            --neon-purple-glow: 0 0 20px rgba(139, 92, 246, 0.35);
+            --font-main: 'Outfit', sans-serif;
+            --font-mono: 'Roboto Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.08) 0%, transparent 40%);
+            background-attachment: fixed;
+            color: var(--text-primary);
+            font-family: var(--font-main);
+            min-height: 100vh;
+            padding: 24px;
+        }
+
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 24px;
+            background: rgba(17, 24, 39, 0.4);
+            border: 1px solid var(--card-border);
+            backdrop-filter: blur(12px);
+            border-radius: 16px;
+        }
+
+        header h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+        }
+
+        header h1 span {
+            color: var(--accent-blue);
+        }
+
+        .header-meta {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .badge {
+            padding: 6px 12px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .badge-paper {
+            background-color: rgba(59, 130, 246, 0.15);
+            color: var(--accent-blue);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            box-shadow: var(--neon-blue-glow);
+        }
+
+        .badge-live {
+            background-color: rgba(239, 68, 68, 0.15);
+            color: var(--accent-red);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            box-shadow: var(--neon-red-glow);
+        }
+
+        @keyframes status-blink {
+            0% {
+                background-color: rgba(16, 185, 129, 0.2); /* green */
+                color: var(--accent-green);
+                border-color: rgba(16, 185, 129, 0.5);
+                box-shadow: 0 0 12px rgba(16, 185, 129, 0.5);
+            }
+            50% {
+                background-color: rgba(239, 68, 68, 0.2); /* red */
+                color: var(--accent-red);
+                border-color: rgba(239, 68, 68, 0.5);
+                box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
+            }
+            100% {
+                background-color: rgba(16, 185, 129, 0.2); /* green */
+                color: var(--accent-green);
+                border-color: rgba(16, 185, 129, 0.5);
+                box-shadow: 0 0 12px rgba(16, 185, 129, 0.5);
+            }
+        }
+
+        .badge-dead {
+            animation: status-blink 1s infinite alternate;
+        }
+
+        .update-time {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            font-family: var(--font-mono);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            backdrop-filter: blur(20px);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .card:hover {
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .card-title {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 8px;
+        }
+
+        .card-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            letter-spacing: -0.03em;
+        }
+
+        .card-sub {
+            margin-top: 8px;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .position-status {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .grid-levels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            background: rgba(0,0,0,0.25);
+            padding: 6px;
+            border-radius: 8px;
+        }
+
+        .grid-level-dot {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .dot.active {
+            background-color: var(--accent-green);
+            box-shadow: var(--neon-green-glow);
+        }
+
+        /* Dual Column Visuals */
+        .visuals-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 20px;
+        }
+
+        .visual-column-title {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--card-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .gauge-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            height: 100px;
+            margin-bottom: 12px;
+        }
+
+        .gauge-bar-outer {
+            width: 100%;
+            height: 10px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 9999px;
+            overflow: hidden;
+            position: relative;
+            margin-top: 10px;
+        }
+
+        .gauge-bar-inner {
+            height: 100%;
+            width: 0%;
+            background: var(--accent-blue);
+            transition: width 0.5s ease, background-color 0.5s ease;
+            border-radius: 9999px;
+        }
+
+        .gauge-center-line {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            width: 2px;
+            height: 100%;
+            background: rgba(255,255,255,0.4);
+            z-index: 2;
+        }
+
+        .gauge-labels {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+            font-family: var(--font-mono);
+        }
+
+        /* Charts */
+        .chart-section {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .chart-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+
+        /* Tab Switcher */
+        .tab-switcher {
+            display: flex;
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            padding: 4px;
+            border: 1px solid var(--card-border);
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tab-btn.active {
+            background: var(--accent-blue);
+            color: white;
+            box-shadow: var(--neon-blue-glow);
+        }
+
+        .chart-container-wrapper {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            width: 100%;
+            background: rgba(0,0,0,0.1);
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.03);
+            overflow: hidden;
+        }
+
+        #price-chart {
+            height: 320px;
+        }
+
+        #zscore-chart {
+            height: 160px;
+        }
+
+        /* Log Section */
+        .log-section {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+        }
+
+        .log-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .terminal-box {
+            background: rgba(5, 7, 12, 0.95);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 16px;
+            height: 250px;
+            overflow-y: auto;
+            font-family: var(--font-mono);
+            font-size: 0.825rem;
+            line-height: 1.6;
+            color: #d1d5db;
+        }
+
+        .log-line {
+            margin-bottom: 6px;
+            border-bottom: 1px solid rgba(255,255,255,0.02);
+            padding-bottom: 4px;
+        }
+
+        .log-line:last-child {
+            border: none;
+            margin-bottom: 0;
+        }
+
+        .terminal-box::-webkit-scrollbar {
+            width: 8px;
+        }
+        .terminal-box::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.15);
+            border-radius: 4px;
+        }
+        
+        .txt-green { color: var(--accent-green); }
+        .txt-red { color: var(--accent-red); }
+        .txt-blue { color: var(--accent-blue); }
+        .txt-purple { color: var(--accent-purple); }
+        
+        .pulse {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: var(--accent-green);
+            animation: pulse-animation 2s infinite;
+        }
+
+        @keyframes pulse-animation {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+        
+        <!-- Header -->
+        <header>
+            <h1><span>XRP-ETH</span> WFO Portfolio Dashboard</h1>
+            <div class="header-meta">
+                <div class="pulse"></div>
+                <div class="update-time" id="last-update">대기 중...</div>
+                <span class="badge badge-paper" id="bot-mode">PAPER</span>
+            </div>
+        </header>
+        
+        <!-- Stats Grid (Portfolio Split) -->
+        <div class="stats-grid">
+            <!-- Unified Balance -->
+            <div class="card" style="border-left: 4px solid var(--accent-blue);">
+                <div class="card-title">통합 포트폴리오 평가 자산</div>
+                <div class="card-value" id="portfolio-balance">0 원</div>
+                <div class="card-sub">초기 총 원금: 1,000,000 원</div>
+            </div>
+            
+            <!-- XRP Card -->
+            <div class="card" style="border-left: 4px solid var(--accent-purple);">
+                <div class="card-title" style="color:#a78bfa;">XRP 계좌 현황 (50%)</div>
+                <div class="card-value" id="xrp-balance" style="font-size:1.5rem;">0 원</div>
+                <div class="card-sub" style="display:flex; justify-content:space-between; margin-top:4px;">
+                    <span>수익률: <strong id="xrp-return">0.00%</strong></span>
+                    <span id="xrp-ts-badge" class="badge" style="display:none; padding:1px 6px; font-size:0.6rem; background:rgba(139, 92, 246, 0.2); color:var(--accent-purple);">TS 활성</span>
+                </div>
+                <!-- Mini positions info -->
+                <div id="xrp-pos-detail" style="font-size:0.75rem; color:var(--text-secondary); margin-top:6px; display:none;">
+                    평단: <span id="xrp-avg">0</span>원 | 수량: <span id="xrp-qty">0</span>XRP
+                </div>
+                <div class="grid-levels">
+                    <div class="grid-level-dot"><div class="dot" id="xrp-dot-1"></div>1차</div>
+                    <div class="grid-level-dot"><div class="dot" id="xrp-dot-2"></div>2차</div>
+                    <div class="grid-level-dot"><div class="dot" id="xrp-dot-3"></div>3차</div>
+                </div>
+            </div>
+
+            <!-- ETH Card -->
+            <div class="card" style="border-left: 4px solid var(--accent-green);">
+                <div class="card-title" style="color:#34d399;">ETH 계좌 현황 (50%)</div>
+                <div class="card-value" id="eth-balance" style="font-size:1.5rem;">0 원</div>
+                <div class="card-sub" style="display:flex; justify-content:space-between; margin-top:4px;">
+                    <span>수익률: <strong id="eth-return">0.00%</strong></span>
+                    <span id="eth-ts-badge" class="badge" style="display:none; padding:1px 6px; font-size:0.6rem; background:rgba(16, 185, 129, 0.2); color:var(--accent-green);">TS 활성</span>
+                </div>
+                <!-- Mini positions info -->
+                <div id="eth-pos-detail" style="font-size:0.75rem; color:var(--text-secondary); margin-top:6px; display:none;">
+                    평단: <span id="eth-avg">0</span>원 | 수량: <span id="eth-qty">0</span>ETH
+                </div>
+                <div class="grid-levels">
+                    <div class="grid-level-dot"><div class="dot" id="eth-dot-1"></div>1차</div>
+                    <div class="grid-level-dot"><div class="dot" id="eth-dot-2"></div>2차</div>
+                    <div class="grid-level-dot"><div class="dot" id="eth-dot-3"></div>3차</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Indicators Grid (Dual columns) -->
+        <div class="visuals-grid">
+            <!-- XRP Indicators -->
+            <div class="card">
+                <div class="visual-column-title" style="color:#a78bfa;">
+                    <span>XRP 실시간 보조 지표</span>
+                    <span id="xrp-live-price" style="font-family:var(--font-mono);">0 원</span>
+                </div>
+                <!-- Zscore -->
+                <div class="gauge-wrapper">
+                    <div style="font-size:1.5rem; font-weight:700; font-family:var(--font-mono);" id="xrp-z-val">0.00</div>
+                    <div style="font-size:0.7rem; color:var(--text-secondary);">Z-Score (MA 100 기준, -1.2 진입)</div>
+                    <div class="gauge-bar-outer">
+                        <div class="gauge-center-line"></div>
+                        <div class="gauge-bar-inner" id="xrp-z-bar"></div>
+                    </div>
+                </div>
+                <!-- Vol Power -->
+                <div class="gauge-wrapper">
+                    <div style="font-size:1.5rem; font-weight:700; font-family:var(--font-mono);" id="xrp-vp-val">50.0%</div>
+                    <div style="font-size:0.7rem; color:var(--text-secondary);">체결강도 (Volume Power, 50% 초과 진입)</div>
+                    <div class="gauge-bar-outer">
+                        <div class="gauge-center-line"></div>
+                        <div class="gauge-bar-inner" id="xrp-vp-bar"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ETH Indicators -->
+            <div class="card">
+                <div class="visual-column-title" style="color:#34d399;">
+                    <span>ETH 실시간 보조 지표</span>
+                    <span id="eth-live-price" style="font-family:var(--font-mono);">0 원</span>
+                </div>
+                <!-- Zscore -->
+                <div class="gauge-wrapper">
+                    <div style="font-size:1.5rem; font-weight:700; font-family:var(--font-mono);" id="eth-z-val">0.00</div>
+                    <div style="font-size:0.7rem; color:var(--text-secondary);">Z-Score (MA 100 기준, -1.2 진입)</div>
+                    <div class="gauge-bar-outer">
+                        <div class="gauge-center-line"></div>
+                        <div class="gauge-bar-inner" id="eth-z-bar"></div>
+                    </div>
+                </div>
+                <!-- Vol Power -->
+                <div class="gauge-wrapper">
+                    <div style="font-size:1.5rem; font-weight:700; font-family:var(--font-mono);" id="eth-vp-val">50.0%</div>
+                    <div style="font-size:0.7rem; color:var(--text-secondary);">체결강도 (Volume Power, 50% 초과 진입)</div>
+                    <div class="gauge-bar-outer">
+                        <div class="gauge-center-line"></div>
+                        <div class="gauge-bar-inner" id="eth-vp-bar"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Section with Tabs -->
+        <div class="chart-section">
+            <div class="chart-header">
+                <h2 class="chart-title" id="chart-section-title">시장 분석 차트</h2>
+                <div class="tab-switcher">
+                    <button class="tab-btn active" id="btn-xrp" onclick="switchTab('xrp')">XRP (리플)</button>
+                    <button class="tab-btn" id="btn-eth" onclick="switchTab('eth')">ETH (이더리움)</button>
+                </div>
+            </div>
+            
+            <div class="chart-container-wrapper">
+                <div class="chart-wrapper">
+                    <div id="price-chart"></div>
+                </div>
+                <div class="chart-wrapper">
+                    <div id="zscore-chart"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logs -->
+        <div class="log-section">
+            <div class="log-title">
+                <span>통합 트레이더 실시간 로그</span>
+                <span style="font-size:0.75rem; color:var(--text-secondary); font-weight:normal;">upbit_portfolio_log.txt</span>
+            </div>
+            <div class="terminal-box" id="terminal-logs">
+                <div class="log-line">대기 중...</div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Script to Handle Live Updates -->
+    <script>
+        let priceChart, candleSeries, zscoreChart, zscoreSeries;
+        let activeTab = 'xrp'; // Default tab
+        let cachedData = null; // Store fetched data
+        
+        function initCharts() {
+            const chartOptions = {
+                layout: {
+                    background: { color: 'transparent' },
+                    textColor: '#9ca3af',
+                    fontSize: 11,
+                    fontFamily: "'Outfit', sans-serif"
+                },
+                grid: {
+                    vertLines: { color: 'rgba(255, 255, 255, 0.03)' },
+                    horzLines: { color: 'rgba(255, 255, 255, 0.03)' },
+                },
+                timeScale: {
+                    borderColor: 'rgba(255, 255, 255, 0.08)',
+                    timeVisible: true,
+                    secondsVisible: false,
+                },
+                rightPriceScale: {
+                    borderColor: 'rgba(255, 255, 255, 0.08)',
+                },
+                handleScroll: {
+                    mouseWheel: false,
+                    pressedMouseMove: true,
+                    horzTouchDrag: true,
+                    vertTouchDrag: false
+                },
+                handleScale: {
+                    mouseWheel: false,
+                    pinch: true,
+                    axisPressedMouseMove: { time: true, price: true }
+                }
+            };
+
+            // 1. Price Chart
+            const priceDom = document.getElementById('price-chart');
+            priceChart = LightweightCharts.createChart(priceDom, {
+                ...chartOptions,
+                crosshair: { mode: LightweightCharts.CrosshairMode.Normal }
+            });
+            candleSeries = priceChart.addCandlestickSeries({
+                upColor: '#10b981',
+                downColor: '#ef4444',
+                borderVisible: false,
+                wickUpColor: '#10b981',
+                wickDownColor: '#ef4444',
+            });
+
+            // 2. Z-Score Chart
+            const zscoreDom = document.getElementById('zscore-chart');
+            zscoreChart = LightweightCharts.createChart(zscoreDom, {
+                ...chartOptions,
+                crosshair: { mode: LightweightCharts.CrosshairMode.Normal }
+            });
+            zscoreSeries = zscoreChart.addLineSeries({
+                color: '#8b5cf6',
+                lineWidth: 2,
+            });
+            
+            // Sync Time Scales
+            let isReflecting = false;
+            priceChart.timeScale().subscribeVisibleTimeRangeChange((range) => {
+                if (isReflecting || !range) return;
+                isReflecting = true;
+                zscoreChart.timeScale().setVisibleRange(range);
+                isReflecting = false;
+            });
+            zscoreChart.timeScale().subscribeVisibleTimeRangeChange((range) => {
+                if (isReflecting || !range) return;
+                isReflecting = true;
+                priceChart.timeScale().setVisibleRange(range);
+                isReflecting = false;
+            });
+
+            // Responsive Resize
+            window.addEventListener('resize', () => {
+                priceChart.resize(priceDom.clientWidth, priceDom.clientHeight);
+                zscoreChart.resize(zscoreDom.clientWidth, zscoreDom.clientHeight);
+            });
+        }
+
+        // Switch Tab trigger
+        function switchTab(tab) {
+            activeTab = tab;
+            document.getElementById('btn-xrp').className = tab === 'xrp' ? 'tab-btn active' : 'tab-btn';
+            document.getElementById('btn-eth').className = tab === 'eth' ? 'tab-btn active' : 'tab-btn';
+            
+            // Re-render chart with cached data immediately
+            if (cachedData) {
+                renderCharts(cachedData[activeTab], activeTab === 'xrp' ? cachedData.xrp.z_score : cachedData.eth.z_score);
+            }
+        }
+
+        // Render Charts helper
+        function renderCharts(assetData, realTimeZ) {
+            if (!assetData.candles || assetData.candles.length === 0) return;
+            
+            const candleData = [];
+            assetData.candles.forEach(c => {
+                let parts = c.time.split(/[-T:]/);
+                let localDate = new Date(parts[0], parts[1]-1, parts[2], parts[3], parts[4], parts[5] || 0);
+                let timeSecs = Math.floor(localDate.getTime() / 1000);
+                if (isNaN(timeSecs)) return;
+                
+                candleData.push({
+                    time: timeSecs,
+                    open: parseFloat(c.open),
+                    high: parseFloat(c.high),
+                    low: parseFloat(c.low),
+                    close: parseFloat(c.close)
+                });
+            });
+            
+            candleSeries.setData(candleData);
+            
+            // Calculate standard Z-scores for line chart
+            const closes = candleData.map(x => x.close);
+            const period = 20; 
+            const zLine = [];
+            for (let i = 0; i < candleData.length; i++) {
+                if (i < period) {
+                    zLine.push({ time: candleData[i].time, value: 0 });
+                    continue;
+                }
+                const slice = closes.slice(i - period + 1, i + 1);
+                const mean = slice.reduce((a,b)=>a+b, 0) / period;
+                const std = Math.sqrt(slice.map(x => Math.pow(x - mean, 2)).reduce((a,b)=>a+b, 0) / period);
+                let z = (candleData[i].close - mean) / (std + 1e-9);
+                if (isNaN(z) || !isFinite(z)) z = 0;
+                
+                zLine.push({ time: candleData[i].time, value: z });
+            }
+            
+            if (zLine.length > 0) {
+                const zVal = parseFloat(realTimeZ);
+                zLine[zLine.length - 1].value = (isNaN(zVal) || !isFinite(zVal)) ? 0 : zVal;
+            }
+            
+            zscoreSeries.setData(zLine);
+        }
+
+        // Update single asset UI indicators
+        function updateAssetUI(key, dataObj) {
+            // Balance & return
+            document.getElementById(`${key}-balance`).innerText = `${Math.floor(dataObj.balance).toLocaleString()} 원`;
+            
+            const returnEl = document.getElementById(`${key}-return`);
+            if (dataObj.in_trade) {
+                const ret = ((dataObj.current_price - dataObj.position_avg_price) / dataObj.position_avg_price) * 100;
+                returnEl.innerText = `${ret >= 0 ? '+' : ''}${ret.toFixed(2)}%`;
+                returnEl.className = ret >= 0 ? 'txt-green' : 'txt-red';
+                
+                // Show positions details
+                document.getElementById(`${key}-pos-detail`).style.display = 'block';
+                document.getElementById(`${key}-avg`).innerText = Math.floor(dataObj.position_avg_price).toLocaleString();
+                document.getElementById(`${key}-qty`).innerText = dataObj.position_size.toFixed(4);
+            } else {
+                returnEl.innerText = '0.00%';
+                returnEl.className = '';
+                document.getElementById(`${key}-pos-detail`).style.display = 'none';
+            }
+            
+            // TS badge
+            document.getElementById(`${key}-ts-badge`).style.display = dataObj.trailing_active ? 'block' : 'none';
+            
+            // Grid Dots
+            document.getElementById(`${key}-dot-1`).className = dataObj.in_trade ? 'dot active' : 'dot';
+            document.getElementById(`${key}-dot-2`).className = dataObj.level_2_filled ? 'dot active' : 'dot';
+            document.getElementById(`${key}-dot-3`).className = dataObj.level_3_filled ? 'dot active' : 'dot';
+            
+            // Prices, Z-score, Volpower
+            document.getElementById(`${key}-live-price`).innerText = `${Math.floor(dataObj.current_price).toLocaleString()} 원`;
+            
+            const zVal = parseFloat(dataObj.z_score);
+            document.getElementById(`${key}-z-val`).innerText = zVal.toFixed(2);
+            const zValEl = document.getElementById(`${key}-z-val`);
+            if (zVal <= -1.2) zValEl.className = 'txt-green';
+            else if (zVal >= 1.5) zValEl.className = 'txt-red';
+            else zValEl.className = '';
+            
+            let zPct = ((zVal + 3.0) / 6.0) * 100;
+            zPct = Math.max(0, Math.min(100, zPct));
+            const zBar = document.getElementById(`${key}-z-bar`);
+            zBar.style.width = `${zPct}%`;
+            zBar.style.backgroundColor = zVal <= -1.2 ? 'var(--accent-green)' : (zVal >= 1.5 ? 'var(--accent-red)' : 'var(--accent-blue)');
+            
+            const vpVal = parseFloat(dataObj.vol_power);
+            document.getElementById(`${key}-vp-val`).innerText = `${vpVal.toFixed(1)}%`;
+            const vpValEl = document.getElementById(`${key}-vp-val`);
+            if (vpVal > 50.0) vpValEl.className = 'txt-green';
+            else vpValEl.className = 'txt-red';
+            
+            const vpBar = document.getElementById(`${key}-vp-bar`);
+            vpBar.style.width = `${vpVal}%`;
+            vpBar.style.backgroundColor = vpVal > 50.0 ? 'var(--accent-green)' : 'var(--accent-red)';
+        }
+
+        // Fetch loop
+        async function fetchDashboardData() {
+            try {
+                const response = await fetch('https://upbit-portfolio-worker.nijin39.workers.dev/data?t=' + new Date().getTime());
+                if (!response.ok) throw new Error('Data fetch failed');
+                
+                const data = await response.json();
+                cachedData = data; // Cache data
+                
+                // Update mode & time
+                const modeBadge = document.getElementById('bot-mode');
+                
+                // Calculate latency to detect if process is alive (90s limit)
+                const lastTime = new Date(data.timestamp.replace(/-/g, '/'));
+                const now = new Date();
+                const diffSec = (now - lastTime) / 1000;
+                
+                if (diffSec > 90) {
+                    modeBadge.innerText = 'DEAD / OFFLINE';
+                    modeBadge.className = 'badge badge-dead';
+                } else {
+                    modeBadge.innerText = data.mode.toUpperCase();
+                    modeBadge.className = data.mode === 'live' ? 'badge badge-live' : 'badge badge-paper';
+                }
+                document.getElementById('last-update').innerText = `마지막 동기화: ${data.timestamp}`;
+                
+                // Total Balance
+                document.getElementById('portfolio-balance').innerText = `${Math.floor(data.total_balance).toLocaleString()} 원`;
+                
+                // Update assets
+                updateAssetUI('xrp', data.xrp);
+                updateAssetUI('eth', data.eth);
+                
+                // Update active chart tab
+                renderCharts(data[activeTab], activeTab === 'xrp' ? data.xrp.z_score : data.eth.z_score);
+                
+                // Update Logs
+                const logDom = document.getElementById('terminal-logs');
+                if (data.logs && data.logs.length > 0) {
+                    logDom.innerHTML = data.logs.map(line => {
+                        let classNm = '';
+                        if (line.includes('[ENTRY') || line.includes('[GRID FILL')) classNm = 'txt-blue';
+                        else if (line.includes('[EXIT: TRAILING STOP]')) classNm = 'txt-green';
+                        else if (line.includes('[EXIT: STOP LOSS]')) classNm = 'txt-red';
+                        else if (line.includes('=== [')) classNm = 'txt-purple';
+                        
+                        return `<div class="log-line ${classNm}">${line}</div>`;
+                    }).join('');
+                    
+                    logDom.scrollTop = logDom.scrollHeight;
+                } else {
+                    logDom.innerHTML = '<div class="log-line">대기 중... (첫 스캔 대기)</div>';
+                }
+                
+                const errBanner = document.getElementById('error-banner');
+                if (errBanner) errBanner.remove();
+            } catch (err) {
+                console.error("Dashboard update error: ", err);
+                document.getElementById('last-update').innerText = "동기화 오류...";
+                const modeBadge = document.getElementById('bot-mode');
+                modeBadge.innerText = 'DEAD / OFFLINE';
+                modeBadge.className = 'badge badge-dead';
+            }
+        }
+
+        // Main Entry
+        window.addEventListener('DOMContentLoaded', () => {
+            initCharts();
+            fetchDashboardData();
+            setInterval(fetchDashboardData, 5000);
+        });
+    </script>
+</body>
+</html>

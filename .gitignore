@@ -1,0 +1,26 @@
+# Ignore logs
+*log.txt
+*.log
+
+# Ignore data JSON & CSV
+*.json
+*.csv
+
+# Ignore node modules and cache
+node_modules/
+__pycache__/
+.DS_Store
+
+# Ignore local temp artifacts
+dist/
+.gemini/
+
+# Ignore test / sub-projects
+antigravity-test/
+silicon2-migration/
+gateway/
+screenshot.png
+antigravity_workflow.svg
+SLM/
+unpacked/
+config.json

@@ -1,0 +1,25 @@
+name: Deploy Trader Bot to Raspberry Pi
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Stop Existing Bot
+        run: |
+          echo "Stopping existing trader bot..."
+          pkill -9 -f upbit_portfolio_trader.py || true
+          sleep 2
+
+      - name: Start Trader Bot
+        run: |
+          echo "Starting new trader bot in background..."
+          nohup python3 -u upbit_portfolio_trader.py > upbit_portfolio_log.txt 2>&1 < /dev/null &
+          sleep 3
+          ps aux | grep upbit_portfolio_trader.py
