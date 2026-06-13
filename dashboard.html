@@ -751,17 +751,8 @@
                 rightPriceScale: {
                     borderColor: '#27272a',
                 },
-                handleScroll: {
-                    mouseWheel: false,
-                    pressedMouseMove: true,
-                    horzTouchDrag: true,
-                    vertTouchDrag: false
-                },
-                handleScale: {
-                    mouseWheel: false,
-                    pinch: true,
-                    axisPressedMouseMove: { time: true, price: true }
-                }
+                handleScroll: false,
+                handleScale: false
             };
 
             // 1. Price Chart
@@ -862,6 +853,7 @@
             });
             
             candleSeries.setData(candleData);
+            priceChart.timeScale().fitContent();
             
             // Calculate standard Z-scores for line chart
             const closes = candleData.map(x => x.close);
@@ -887,6 +879,7 @@
             }
             
             zscoreSeries.setData(zLine);
+            zscoreChart.timeScale().fitContent();
         }
 
         // Update single asset UI indicators
@@ -997,6 +990,7 @@
                     });
                     formattedHistory.sort((a,b) => a.time.localeCompare(b.time));
                     equitySeries.setData(formattedHistory);
+                    equityChart.timeScale().fitContent();
                     
                     const lastVal = formattedHistory[formattedHistory.length - 1].value;
                     const firstVal = formattedHistory[0].value;
