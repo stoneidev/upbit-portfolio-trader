@@ -9,22 +9,22 @@
             errDiv.style.left = '0';
             errDiv.style.width = '100vw';
             errDiv.style.height = '100vh';
-            errDiv.style.background = 'rgba(239, 68, 68, 0.95)';
+            errDiv.style.background = 'rgba(220, 38, 38, 0.98)';
             errDiv.style.color = '#ffffff';
             errDiv.style.padding = '40px';
             errDiv.style.zIndex = '999999';
             errDiv.style.fontFamily = 'monospace';
-            errDiv.style.fontSize = '16px';
+            errDiv.style.fontSize = '15px';
             errDiv.style.overflow = 'auto';
-            errDiv.style.lineHeight = '1.5';
+            errDiv.style.lineHeight = '1.6';
             
             errDiv.innerHTML = `
-                <h1 style="margin-bottom: 20px; font-size: 24px;">🚨 [전역 자바스크립트 에러 감지]</h1>
-                <p><strong>Message:</strong> ${message}</p>
-                <p><strong>Source:</strong> ${source}</p>
-                <p><strong>Line:</strong> ${lineno} | <strong>Column:</strong> ${colno}</p>
-                <hr style="margin: 20px 0; border: none; border-top: 1px solid rgba(255,255,255,0.3);">
-                <pre style="white-space: pre-wrap;">${error ? error.stack : 'No stack trace available'}</pre>
+                <h1 style="margin-bottom: 20px; font-size: 22px; font-weight: 700;">🚨 전역 자바스크립트 오류 감지</h1>
+                <p><strong>오류 메시지:</strong> ${message}</p>
+                <p><strong>발생 위치:</strong> ${source}</p>
+                <p><strong>라인/컬럼:</strong> Line ${lineno} | Col ${colno}</p>
+                <hr style="margin: 20px 0; border: none; border-top: 1px solid rgba(255,255,255,0.2);">
+                <pre style="white-space: pre-wrap; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px;">${error ? error.stack : '스택 정보 없음'}</pre>
             `;
             document.body.appendChild(errDiv);
             return false;
@@ -32,32 +32,33 @@
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>XRP-ETH Portfolio Trader Dashboard</title>
-    <!-- Google Fonts -->
+    <title>WFO Portfolio Intelligence</title>
+    <!-- Google Fonts: Plus Jakarta Sans & Fira Code -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500;700&display=swap" rel="stylesheet">
     
     <!-- Lightweight Charts CDN -->
     <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
     
     <style>
         :root {
-            --bg-color: #080b11;
-            --card-bg: rgba(17, 24, 39, 0.6);
-            --card-border: rgba(255, 255, 255, 0.08);
-            --text-primary: #f3f4f6;
-            --text-secondary: #9ca3af;
+            --bg-color: #060913; /* 깊고 무게감 있는 네이비 블랙 */
+            --card-bg: rgba(13, 20, 38, 0.45);
+            --card-border: rgba(255, 255, 255, 0.04);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
             --accent-green: #10b981;
             --accent-red: #ef4444;
             --accent-blue: #3b82f6;
             --accent-purple: #8b5cf6;
-            --neon-green-glow: 0 0 20px rgba(16, 185, 129, 0.35);
-            --neon-red-glow: 0 0 20px rgba(239, 68, 68, 0.35);
-            --neon-blue-glow: 0 0 20px rgba(59, 130, 246, 0.35);
-            --neon-purple-glow: 0 0 20px rgba(139, 92, 246, 0.35);
-            --font-main: 'Outfit', sans-serif;
-            --font-mono: 'Roboto Mono', monospace;
+            --font-main: 'Plus Jakarta Sans', sans-serif;
+            --font-mono: 'Fira Code', monospace;
+            
+            /* 그라디언트 테크 효과 */
+            --gradient-blue-purple: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            --gradient-emerald-green: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+            --gradient-rose-red: linear-gradient(135deg, #fb7185 0%, #ef4444 100%);
         }
 
         * {
@@ -69,198 +70,211 @@
         body {
             background-color: var(--bg-color);
             background-image: 
-                radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.08) 0%, transparent 40%),
-                radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.08) 0%, transparent 40%);
+                radial-gradient(circle at 5% 10%, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 95% 90%, rgba(139, 92, 246, 0.05) 0%, transparent 50%);
             background-attachment: fixed;
             color: var(--text-primary);
             font-family: var(--font-main);
             min-height: 100vh;
-            padding: 24px;
+            padding: 32px 24px;
+            -webkit-font-smoothing: antialiased;
         }
 
         .dashboard-container {
             max-width: 1400px;
             margin: 0 auto;
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 28px;
         }
 
         header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 16px 24px;
-            background: rgba(17, 24, 39, 0.4);
+            padding: 20px 28px;
+            background: rgba(13, 20, 38, 0.3);
             border: 1px solid var(--card-border);
-            backdrop-filter: blur(12px);
-            border-radius: 16px;
+            backdrop-filter: blur(24px);
+            border-radius: 20px;
         }
 
         header h1 {
-            font-size: 1.5rem;
-            font-weight: 700;
-            letter-spacing: -0.025em;
+            font-size: 1.35rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         header h1 span {
-            color: var(--accent-blue);
+            background: var(--gradient-blue-purple);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
         .header-meta {
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 20px;
         }
 
         .badge {
-            padding: 6px 12px;
+            padding: 6px 14px;
             border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 700;
+            font-size: 0.7rem;
+            font-weight: 800;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
+            letter-spacing: 0.08em;
+            border: 1px solid transparent;
+            transition: all 0.3s ease;
         }
 
         .badge-paper {
-            background-color: rgba(59, 130, 246, 0.15);
-            color: var(--accent-blue);
-            border: 1px solid rgba(59, 130, 246, 0.3);
-            box-shadow: var(--neon-blue-glow);
+            background-color: rgba(59, 130, 246, 0.08);
+            color: #60a5fa;
+            border-color: rgba(59, 130, 246, 0.2);
         }
 
         .badge-live {
-            background-color: rgba(239, 68, 68, 0.15);
-            color: var(--accent-red);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            box-shadow: var(--neon-red-glow);
+            background-color: rgba(239, 68, 68, 0.08);
+            color: #f87171;
+            border-color: rgba(239, 68, 68, 0.2);
         }
 
-        @keyframes status-blink {
-            0% {
-                background-color: rgba(16, 185, 129, 0.2); /* green */
-                color: var(--accent-green);
-                border-color: rgba(16, 185, 129, 0.5);
-                box-shadow: 0 0 12px rgba(16, 185, 129, 0.5);
-            }
-            50% {
-                background-color: rgba(239, 68, 68, 0.2); /* red */
-                color: var(--accent-red);
-                border-color: rgba(239, 68, 68, 0.5);
-                box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
-            }
-            100% {
-                background-color: rgba(16, 185, 129, 0.2); /* green */
-                color: var(--accent-green);
-                border-color: rgba(16, 185, 129, 0.5);
-                box-shadow: 0 0 12px rgba(16, 185, 129, 0.5);
-            }
+        @keyframes pulse-breathing {
+            0% { opacity: 0.4; }
+            100% { opacity: 1; }
         }
 
         .badge-dead {
-            animation: status-blink 1s infinite alternate;
+            background-color: rgba(244, 63, 94, 0.12);
+            color: #fb7185;
+            border-color: rgba(244, 63, 94, 0.25);
+            animation: pulse-breathing 1s infinite alternate;
         }
 
         .update-time {
-            font-size: 0.875rem;
+            font-size: 0.8rem;
             color: var(--text-secondary);
             font-family: var(--font-mono);
+            font-weight: 500;
         }
 
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 20px;
+            gap: 24px;
         }
 
         .card {
             background: var(--card-bg);
             border: 1px solid var(--card-border);
-            backdrop-filter: blur(20px);
-            border-radius: 16px;
-            padding: 20px;
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
-            transition: transform 0.2s ease, border-color 0.2s ease;
+            backdrop-filter: blur(24px);
+            border-radius: 20px;
+            padding: 24px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease, background 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: transparent;
+            transition: background 0.3s ease;
         }
 
         .card:hover {
-            border-color: rgba(255, 255, 255, 0.15);
+            transform: translateY(-4px);
+            border-color: rgba(255, 255, 255, 0.09);
+            background: rgba(13, 20, 38, 0.55);
+            box-shadow: 0 15px 45px rgba(0, 0, 0, 0.35);
         }
 
+        .card.border-blue::before { background: var(--accent-blue); }
+        .card.border-purple::before { background: var(--accent-purple); }
+        .card.border-green::before { background: var(--accent-green); }
+
         .card-title {
-            font-size: 0.875rem;
+            font-size: 0.75rem;
             color: var(--text-secondary);
-            font-weight: 600;
+            font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 8px;
+            letter-spacing: 0.08em;
+            margin-bottom: 10px;
         }
 
         .card-value {
-            font-size: 1.75rem;
-            font-weight: 700;
+            font-size: 1.6rem;
+            font-weight: 800;
             font-family: var(--font-mono);
-            letter-spacing: -0.03em;
+            letter-spacing: -0.04em;
+            color: #ffffff;
         }
 
         .card-sub {
-            margin-top: 8px;
-            font-size: 0.875rem;
+            margin-top: 10px;
+            font-size: 0.8rem;
             color: var(--text-secondary);
-        }
-
-        .position-status {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
+            font-weight: 500;
         }
 
         .grid-levels {
             display: flex;
             justify-content: space-between;
-            margin-top: 8px;
-            background: rgba(0,0,0,0.25);
-            padding: 6px;
-            border-radius: 8px;
+            margin-top: 14px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 8px 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.02);
         }
 
         .grid-level-dot {
             display: flex;
             align-items: center;
-            gap: 4px;
-            font-size: 0.7rem;
+            gap: 6px;
+            font-size: 0.72rem;
             color: var(--text-secondary);
             font-weight: 600;
         }
 
         .dot {
-            width: 8px;
-            height: 8px;
+            width: 7px;
+            height: 7px;
             border-radius: 50%;
-            background-color: rgba(255, 255, 255, 0.2);
+            background-color: rgba(255, 255, 255, 0.15);
+            transition: all 0.4s ease;
         }
 
         .dot.active {
             background-color: var(--accent-green);
-            box-shadow: var(--neon-green-glow);
+            box-shadow: 0 0 10px var(--accent-green);
         }
 
-        /* Dual Column Visuals */
         .visuals-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
-            gap: 20px;
+            gap: 24px;
         }
 
         .visual-column-title {
-            font-size: 1rem;
-            font-weight: 700;
-            margin-bottom: 12px;
-            padding-bottom: 6px;
+            font-size: 0.95rem;
+            font-weight: 800;
+            margin-bottom: 16px;
+            padding-bottom: 10px;
             border-bottom: 1px solid var(--card-border);
             display: flex;
             justify-content: space-between;
             align-items: center;
+            letter-spacing: -0.02em;
         }
 
         .gauge-wrapper {
@@ -269,25 +283,26 @@
             align-items: center;
             justify-content: center;
             position: relative;
-            height: 100px;
-            margin-bottom: 12px;
+            height: 90px;
+            margin-bottom: 14px;
         }
 
         .gauge-bar-outer {
             width: 100%;
-            height: 10px;
-            background: rgba(255,255,255,0.05);
+            height: 6px;
+            background: rgba(255, 255, 255, 0.03);
             border-radius: 9999px;
             overflow: hidden;
             position: relative;
-            margin-top: 10px;
+            margin-top: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.01);
         }
 
         .gauge-bar-inner {
             height: 100%;
             width: 0%;
             background: var(--accent-blue);
-            transition: width 0.5s ease, background-color 0.5s ease;
+            transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.5s ease;
             border-radius: 9999px;
         }
 
@@ -295,49 +310,41 @@
             position: absolute;
             left: 50%;
             top: 0;
-            width: 2px;
+            width: 1px;
             height: 100%;
-            background: rgba(255,255,255,0.4);
+            background: rgba(255, 255, 255, 0.25);
             z-index: 2;
         }
 
-        .gauge-labels {
-            display: flex;
-            justify-content: space-between;
-            width: 100%;
-            font-size: 0.7rem;
-            color: var(--text-secondary);
-            margin-top: 4px;
-            font-family: var(--font-mono);
-        }
-
-        /* Charts */
         .chart-section {
             background: var(--card-bg);
             border: 1px solid var(--card-border);
-            border-radius: 16px;
-            padding: 24px;
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+            border-radius: 24px;
+            padding: 28px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
         }
 
         .chart-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 16px;
         }
 
         .chart-title {
-            font-size: 1.125rem;
-            font-weight: 600;
+            font-size: 1.05rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            color: #ffffff;
         }
 
-        /* Tab Switcher */
         .tab-switcher {
             display: flex;
-            background: rgba(0,0,0,0.3);
-            border-radius: 10px;
-            padding: 4px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            padding: 3px;
             border: 1px solid var(--card-border);
         }
 
@@ -345,32 +352,32 @@
             background: transparent;
             border: none;
             color: var(--text-secondary);
-            padding: 8px 16px;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 0.875rem;
+            padding: 7px 16px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 0.8rem;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
         .tab-btn.active {
-            background: var(--accent-blue);
-            color: white;
-            box-shadow: var(--neon-blue-glow);
+            background: rgba(255, 255, 255, 0.08);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
         .chart-container-wrapper {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
         }
 
         .chart-wrapper {
             position: relative;
             width: 100%;
-            background: rgba(0,0,0,0.1);
-            border-radius: 12px;
-            border: 1px solid rgba(255,255,255,0.03);
+            background: rgba(0, 0, 0, 0.15);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.02);
             overflow: hidden;
         }
 
@@ -382,11 +389,9 @@
             height: 160px;
         }
 
-        /* Log Section */
         .log-section {
             background: var(--card-bg);
             border: 1px solid var(--card-border);
-            border-radius: 16px;
             padding: 24px;
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
         }
@@ -458,7 +463,7 @@
         
         <!-- Header -->
         <header>
-            <h1><span>XRP-ETH</span> WFO Portfolio Dashboard</h1>
+            <h1><span>WFO Portfolio</span> Intelligence</h1>
             <div class="header-meta">
                 <div class="pulse"></div>
                 <div class="update-time" id="last-update">대기 중...</div>
@@ -469,22 +474,22 @@
         <!-- Stats Grid (Portfolio Split) -->
         <div class="stats-grid">
             <!-- Unified Balance -->
-            <div class="card" style="border-left: 4px solid var(--accent-blue);">
+            <div class="card border-blue">
                 <div class="card-title">통합 포트폴리오 평가 자산</div>
                 <div class="card-value" id="portfolio-balance">0 원</div>
-                <div class="card-sub">초기 총 원금: 1,000,000 원</div>
+                <div class="card-sub">초기 원금: 1,000,000 원</div>
             </div>
             
             <!-- XRP Card -->
-            <div class="card" style="border-left: 4px solid var(--accent-purple);">
-                <div class="card-title" style="color:#a78bfa;">XRP 계좌 현황 (50%)</div>
-                <div class="card-value" id="xrp-balance" style="font-size:1.5rem;">0 원</div>
+            <div class="card border-purple">
+                <div class="card-title" style="color:#c084fc;">XRP 계좌 현황 (50%)</div>
+                <div class="card-value" id="xrp-balance" style="font-size:1.4rem;">0 원</div>
                 <div class="card-sub" style="display:flex; justify-content:space-between; margin-top:4px;">
                     <span>수익률: <strong id="xrp-return">0.00%</strong></span>
-                    <span id="xrp-ts-badge" class="badge" style="display:none; padding:1px 6px; font-size:0.6rem; background:rgba(139, 92, 246, 0.2); color:var(--accent-purple);">TS 활성</span>
+                    <span id="xrp-ts-badge" class="badge" style="display:none; padding:1px 8px; font-size:0.55rem; background:rgba(139, 92, 246, 0.08); color:#a78bfa; border:1px solid rgba(139,92,246,0.15);">TS 활성</span>
                 </div>
                 <!-- Mini positions info -->
-                <div id="xrp-pos-detail" style="font-size:0.75rem; color:var(--text-secondary); margin-top:6px; display:none;">
+                <div id="xrp-pos-detail" style="font-size:0.75rem; color:var(--text-secondary); margin-top:8px; display:none; font-family:var(--font-mono);">
                     평단: <span id="xrp-avg">0</span>원 | 수량: <span id="xrp-qty">0</span>XRP
                 </div>
                 <div class="grid-levels">
@@ -495,15 +500,15 @@
             </div>
 
             <!-- ETH Card -->
-            <div class="card" style="border-left: 4px solid var(--accent-green);">
+            <div class="card border-green">
                 <div class="card-title" style="color:#34d399;">ETH 계좌 현황 (50%)</div>
-                <div class="card-value" id="eth-balance" style="font-size:1.5rem;">0 원</div>
+                <div class="card-value" id="eth-balance" style="font-size:1.4rem;">0 원</div>
                 <div class="card-sub" style="display:flex; justify-content:space-between; margin-top:4px;">
                     <span>수익률: <strong id="eth-return">0.00%</strong></span>
-                    <span id="eth-ts-badge" class="badge" style="display:none; padding:1px 6px; font-size:0.6rem; background:rgba(16, 185, 129, 0.2); color:var(--accent-green);">TS 활성</span>
+                    <span id="eth-ts-badge" class="badge" style="display:none; padding:1px 8px; font-size:0.55rem; background:rgba(16, 185, 129, 0.08); color:#34d399; border:1px solid rgba(16,185,129,0.15);">TS 활성</span>
                 </div>
                 <!-- Mini positions info -->
-                <div id="eth-pos-detail" style="font-size:0.75rem; color:var(--text-secondary); margin-top:6px; display:none;">
+                <div id="eth-pos-detail" style="font-size:0.75rem; color:var(--text-secondary); margin-top:8px; display:none; font-family:var(--font-mono);">
                     평단: <span id="eth-avg">0</span>원 | 수량: <span id="eth-qty">0</span>ETH
                 </div>
                 <div class="grid-levels">
@@ -518,14 +523,14 @@
         <div class="visuals-grid">
             <!-- XRP Indicators -->
             <div class="card">
-                <div class="visual-column-title" style="color:#a78bfa;">
+                <div class="visual-column-title" style="color:#c084fc;">
                     <span>XRP 실시간 보조 지표</span>
                     <span id="xrp-live-price" style="font-family:var(--font-mono);">0 원</span>
                 </div>
                 <!-- Zscore -->
                 <div class="gauge-wrapper">
-                    <div style="font-size:1.5rem; font-weight:700; font-family:var(--font-mono);" id="xrp-z-val">0.00</div>
-                    <div style="font-size:0.7rem; color:var(--text-secondary);">Z-Score (MA 100 기준, -1.2 진입)</div>
+                    <div style="font-size:1.4rem; font-weight:800; font-family:var(--font-mono); color:#ffffff;" id="xrp-z-val">0.00</div>
+                    <div style="font-size:0.68rem; color:var(--text-secondary); margin-top:2px;">Z-Score (MA 100, -1.2 진입)</div>
                     <div class="gauge-bar-outer">
                         <div class="gauge-center-line"></div>
                         <div class="gauge-bar-inner" id="xrp-z-bar"></div>
@@ -533,8 +538,8 @@
                 </div>
                 <!-- Vol Power -->
                 <div class="gauge-wrapper">
-                    <div style="font-size:1.5rem; font-weight:700; font-family:var(--font-mono);" id="xrp-vp-val">50.0%</div>
-                    <div style="font-size:0.7rem; color:var(--text-secondary);">체결강도 (Volume Power, 50% 초과 진입)</div>
+                    <div style="font-size:1.4rem; font-weight:800; font-family:var(--font-mono); color:#ffffff;" id="xrp-vp-val">50.0%</div>
+                    <div style="font-size:0.68rem; color:var(--text-secondary); margin-top:2px;">체결강도 (Volume Power, 50% 초과)</div>
                     <div class="gauge-bar-outer">
                         <div class="gauge-center-line"></div>
                         <div class="gauge-bar-inner" id="xrp-vp-bar"></div>
@@ -550,8 +555,8 @@
                 </div>
                 <!-- Zscore -->
                 <div class="gauge-wrapper">
-                    <div style="font-size:1.5rem; font-weight:700; font-family:var(--font-mono);" id="eth-z-val">0.00</div>
-                    <div style="font-size:0.7rem; color:var(--text-secondary);">Z-Score (MA 100 기준, -1.2 진입)</div>
+                    <div style="font-size:1.4rem; font-weight:800; font-family:var(--font-mono); color:#ffffff;" id="eth-z-val">0.00</div>
+                    <div style="font-size:0.68rem; color:var(--text-secondary); margin-top:2px;">Z-Score (MA 100, -1.2 진입)</div>
                     <div class="gauge-bar-outer">
                         <div class="gauge-center-line"></div>
                         <div class="gauge-bar-inner" id="eth-z-bar"></div>
@@ -559,8 +564,8 @@
                 </div>
                 <!-- Vol Power -->
                 <div class="gauge-wrapper">
-                    <div style="font-size:1.5rem; font-weight:700; font-family:var(--font-mono);" id="eth-vp-val">50.0%</div>
-                    <div style="font-size:0.7rem; color:var(--text-secondary);">체결강도 (Volume Power, 50% 초과 진입)</div>
+                    <div style="font-size:1.4rem; font-weight:800; font-family:var(--font-mono); color:#ffffff;" id="eth-vp-val">50.0%</div>
+                    <div style="font-size:0.68rem; color:var(--text-secondary); margin-top:2px;">체결강도 (Volume Power, 50% 초과)</div>
                     <div class="gauge-bar-outer">
                         <div class="gauge-center-line"></div>
                         <div class="gauge-bar-inner" id="eth-vp-bar"></div>
@@ -605,12 +610,22 @@
 
         <!-- Logs -->
         <div class="log-section">
-            <div class="log-title">
-                <span>통합 트레이더 실시간 로그</span>
-                <span style="font-size:0.75rem; color:var(--text-secondary); font-weight:normal;">upbit_portfolio_log.txt</span>
+            <div class="log-title-wrapper">
+                <div class="log-title">통합 트레이더 실시간 로그</div>
             </div>
-            <div class="terminal-box" id="terminal-logs">
-                <div class="log-line">대기 중...</div>
+            <div class="ide-container">
+                <div class="ide-bar">
+                    <div class="ide-dots">
+                        <div class="ide-dot red"></div>
+                        <div class="ide-dot yellow"></div>
+                        <div class="ide-dot green"></div>
+                    </div>
+                    <div class="ide-filename">upbit_portfolio_log.txt</div>
+                    <div></div>
+                </div>
+                <div class="terminal-box" id="terminal-logs">
+                    <div class="log-line">대기 중...</div>
+                </div>
             </div>
         </div>
 
