@@ -568,6 +568,8 @@ def save_merged_dashboard_data(trader_xrp, state_xrp, trader_eth, state_eth):
             "level_3_filled": trader_xrp.level_3_filled,
             "trailing_active": trader_xrp.trailing_active,
             "peak_price": trader_xrp.peak_price,
+            "z_thresh": trader_xrp.z_thresh,
+            "vol_power_thresh": trader_xrp.vol_power_thresh,
             "candles": format_candles(df_xrp)
         },
         "eth": {
@@ -584,6 +586,8 @@ def save_merged_dashboard_data(trader_xrp, state_xrp, trader_eth, state_eth):
             "level_3_filled": trader_eth.level_3_filled,
             "trailing_active": trader_eth.trailing_active,
             "peak_price": trader_eth.peak_price,
+            "z_thresh": trader_eth.z_thresh,
+            "vol_power_thresh": trader_eth.vol_power_thresh,
             "candles": format_candles(df_eth)
         },
         "equity_history": history_data,

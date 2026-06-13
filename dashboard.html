@@ -651,7 +651,7 @@
                     <!-- Z-Score calibration slider -->
                     <div class="calibration-row">
                         <div class="calibration-label">
-                            <span>Z-Score (MA 100)</span>
+                            <span>Z-Score (MA 100) — 진입 기준: <strong id="xrp-z-thresh" style="color:var(--accent-green)">-1.2</strong></span>
                             <span id="xrp-z-val" class="calibration-value">0.00</span>
                         </div>
                         <div class="slider-container">
@@ -666,7 +666,7 @@
                     <!-- Volume Power thin progress bar -->
                     <div class="vp-container">
                         <div class="calibration-label">
-                            <span>Volume Power (Buy/Sell Ratio)</span>
+                            <span>Volume Power — 진입 기준: <strong id="xrp-vp-thresh" style="color:var(--accent-green)">50.0%</strong> 초과</span>
                             <span id="xrp-vp-val" class="calibration-value">50.0%</span>
                         </div>
                         <div class="vp-track">
@@ -685,7 +685,7 @@
                     <!-- Z-Score calibration slider -->
                     <div class="calibration-row">
                         <div class="calibration-label">
-                            <span>Z-Score (MA 100)</span>
+                            <span>Z-Score (MA 100) — 진입 기준: <strong id="eth-z-thresh" style="color:var(--accent-green)">-1.2</strong></span>
                             <span id="eth-z-val" class="calibration-value">0.00</span>
                         </div>
                         <div class="slider-container">
@@ -700,7 +700,7 @@
                     <!-- Volume Power thin progress bar -->
                     <div class="vp-container">
                         <div class="calibration-label">
-                            <span>Volume Power (Buy/Sell Ratio)</span>
+                            <span>Volume Power — 진입 기준: <strong id="eth-vp-thresh" style="color:var(--accent-green)">50.0%</strong> 초과</span>
                             <span id="eth-vp-val" class="calibration-value">50.0%</span>
                         </div>
                         <div class="vp-track">
@@ -762,11 +762,11 @@
                 crosshair: { mode: LightweightCharts.CrosshairMode.Normal }
             });
             candleSeries = priceChart.addCandlestickSeries({
-                upColor: '#22c55e',
-                downColor: '#ef4444',
+                upColor: '#ef4444',
+                downColor: '#3b82f6',
                 borderVisible: false,
-                wickUpColor: '#22c55e',
-                wickDownColor: '#ef4444',
+                wickUpColor: '#ef4444',
+                wickDownColor: '#3b82f6',
             });
 
             // 2. Z-Score Chart
@@ -914,10 +914,16 @@
             // Prices, Z-score, Volpower
             document.getElementById(`${key}-live-price`).innerText = `${Math.floor(dataObj.current_price).toLocaleString()} KRW`;
             
+            // Update threshold labels from bot data
+            const zThresh = dataObj.z_thresh !== undefined ? parseFloat(dataObj.z_thresh) : -1.2;
+            const vpThresh = dataObj.vol_power_thresh !== undefined ? parseFloat(dataObj.vol_power_thresh) : 50.0;
+            document.getElementById(`${key}-z-thresh`).innerText = zThresh.toFixed(1);
+            document.getElementById(`${key}-vp-thresh`).innerText = `${vpThresh.toFixed(1)}%`;
+            
             const zVal = parseFloat(dataObj.z_score);
             document.getElementById(`${key}-z-val`).innerText = zVal.toFixed(2);
             const zValEl = document.getElementById(`${key}-z-val`);
-            if (zVal <= -1.2) zValEl.className = 'calibration-value txt-green';
+            if (zVal <= zThresh) zValEl.className = 'calibration-value txt-green';
             else if (zVal >= 1.5) zValEl.className = 'calibration-value txt-red';
             else zValEl.className = 'calibration-value';
             
@@ -926,17 +932,17 @@
             zPct = Math.max(0, Math.min(100, zPct));
             const zBar = document.getElementById(`${key}-z-bar`);
             zBar.style.left = `${zPct}%`;
-            zBar.style.backgroundColor = zVal <= -1.2 ? '#22c55e' : (zVal >= 1.5 ? '#ef4444' : '#ffffff');
+            zBar.style.backgroundColor = zVal <= zThresh ? '#22c55e' : (zVal >= 1.5 ? '#ef4444' : '#ffffff');
             
             const vpVal = parseFloat(dataObj.vol_power);
             document.getElementById(`${key}-vp-val`).innerText = `${vpVal.toFixed(1)}%`;
             const vpValEl = document.getElementById(`${key}-vp-val`);
-            if (vpVal > 50.0) vpValEl.className = 'calibration-value txt-green';
+            if (vpVal > vpThresh) vpValEl.className = 'calibration-value txt-green';
             else vpValEl.className = 'calibration-value txt-red';
             
             const vpBar = document.getElementById(`${key}-vp-bar`);
             vpBar.style.width = `${vpVal}%`;
-            vpBar.style.backgroundColor = vpVal > 50.0 ? '#22c55e' : '#ef4444';
+            vpBar.style.backgroundColor = vpVal > vpThresh ? '#22c55e' : '#ef4444';
         }
 
         // Fetch loop
