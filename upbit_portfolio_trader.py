@@ -505,7 +505,8 @@ def save_merged_dashboard_data(trader_xrp, state_xrp, trader_eth, state_eth):
     
     total_balance = trader_xrp.balance + trader_eth.balance
     
-    # 2-year Daily Equity History Management
+    # 2-year Hourly Equity History Management
+    # Records one data point per hour for up to 2 years (~17,520 points)
     script_dir = os.path.dirname(os.path.abspath(__file__))
     history_path = os.path.join(script_dir, "equity_history.json")
     
@@ -518,33 +519,33 @@ def save_merged_dashboard_data(trader_xrp, state_xrp, trader_eth, state_eth):
             print(f"Error loading equity_history.json: {e}")
             history_data = []
             
-    today_str = datetime.datetime.now().strftime("%Y-%m-%d")
+    now_hour_str = datetime.datetime.now().strftime("%Y-%m-%d %H:00")
     
     if not history_data:
         # Initial point
         history_data.append({
-            "time": today_str,
+            "time": now_hour_str,
             "value": total_balance
         })
     else:
         last_entry = history_data[-1]
-        if last_entry.get("time") != today_str:
-            # Date changed, append new entry
+        if last_entry.get("time") != now_hour_str:
+            # New hour, append new entry
             history_data.append({
-                "time": today_str,
+                "time": now_hour_str,
                 "value": total_balance
             })
-            # Limit to 730 days (2 years)
-            if len(history_data) > 730:
-                history_data = history_data[-730:]
+            # Limit to ~2 years of hourly data (24h * 730 days = 17,520)
+            if len(history_data) > 17520:
+                history_data = history_data[-17520:]
         else:
-            # Overwrite today's last balance to keep it accurate
+            # Same hour, overwrite with latest balance
             last_entry["value"] = total_balance
             
     # Save back to local JSON
     try:
         with open(history_path, "w", encoding="utf-8") as hf:
-            json.dump(history_data, hf, indent=4, ensure_ascii=False)
+            json.dump(history_data, hf, ensure_ascii=False)
     except Exception as e:
         print(f"Error saving equity_history.json: {e}")
 

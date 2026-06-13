@@ -786,7 +786,8 @@
                 ...chartOptions,
                 timeScale: {
                     borderColor: '#27272a',
-                    timeVisible: false, // Day scale only
+                    timeVisible: true,
+                    secondsVisible: false,
                 },
                 crosshair: { mode: LightweightCharts.CrosshairMode.Normal }
             });
@@ -989,12 +990,20 @@
                 if (data.equity_history && data.equity_history.length > 0) {
                     const formattedHistory = [];
                     data.equity_history.forEach(h => {
-                        formattedHistory.push({
-                            time: h.time,
-                            value: parseFloat(h.value)
-                        });
+                        // Parse "YYYY-MM-DD HH:00" or "YYYY-MM-DD" format
+                        const parts = h.time.split(/[- :]/);
+                        let d;
+                        if (parts.length >= 4) {
+                            d = new Date(parts[0], parts[1]-1, parts[2], parts[3], parts[4] || 0);
+                        } else {
+                            d = new Date(parts[0], parts[1]-1, parts[2]);
+                        }
+                        const ts = Math.floor(d.getTime() / 1000);
+                        if (!isNaN(ts)) {
+                            formattedHistory.push({ time: ts, value: parseFloat(h.value) });
+                        }
                     });
-                    formattedHistory.sort((a,b) => a.time.localeCompare(b.time));
+                    formattedHistory.sort((a,b) => a.time - b.time);
                     equitySeries.setData(formattedHistory);
                     equityChart.timeScale().fitContent();
                     
@@ -1002,7 +1011,7 @@
                     const firstVal = formattedHistory[0].value;
                     const totalProfitPct = firstVal > 0 ? ((lastVal - firstVal) / firstVal) * 100 : 0;
                     
-                    document.getElementById('equity-update-time').innerText = `RETURN: ${totalProfitPct >= 0 ? '+' : ''}${totalProfitPct.toFixed(2)}% | START: ${formattedHistory[0].time}`;
+                    document.getElementById('equity-update-time').innerText = `RETURN: ${totalProfitPct >= 0 ? '+' : ''}${totalProfitPct.toFixed(2)}% | ${formattedHistory.length} DATA POINTS`;
                 } else {
                     document.getElementById('equity-update-time').innerText = "NO EQUITY DATA FOUND";
                 }
