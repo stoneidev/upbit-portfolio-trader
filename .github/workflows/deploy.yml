@@ -25,6 +25,8 @@ jobs:
           cp /home/stoni/Projects/AI/config.json ./config.json
 
       - name: Start Services
+        env:
+          RUNNER_TRACKING_ID: ""
         run: |
           echo "Starting new trader bot in background..."
           nohup python3 -u upbit_portfolio_trader.py > upbit_portfolio_log.txt 2>&1 < /dev/null &
@@ -33,4 +35,5 @@ jobs:
           sleep 3
           echo "Verifying running processes..."
           ps aux | grep -e "upbit_portfolio_trader.py" -e "http.server" | grep -v grep
+
 
