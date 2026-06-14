@@ -987,12 +987,12 @@
                 const modeBadge = document.getElementById('bot-mode');
                 const statusDot = document.getElementById('status-dot-indicator');
                 
-                // Calculate latency to detect if process is alive (90s limit)
+                // Calculate latency to detect if process is alive (360s limit to match the 5-min upload cycle)
                 const lastTime = new Date(data.timestamp.replace(/-/g, '/'));
                 const now = new Date();
                 const diffSec = (now - lastTime) / 1000;
                 
-                if (diffSec > 90) {
+                if (diffSec > 360) {
                     modeBadge.innerText = 'OFFLINE';
                     modeBadge.className = 'badge badge-dead';
                     statusDot.className = 'status-dot offline';
