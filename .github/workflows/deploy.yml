@@ -11,29 +11,107 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Stop Existing Services
+      - name: Copy Code to Stable Target Directory
         run: |
-          echo "Stopping existing trader bot..."
+          echo "Deploying code to /home/stoni/Projects/AI..."
+          mkdir -p /home/stoni/Projects/AI
+          # Copy code to stable directory, excluding config.json (which is ignored by git and already exists on Pi)
+          cp -rp ./* /home/stoni/Projects/AI/ || true
+
+      - name: Check Sudo Passwordless Access
+        id: check_sudo
+        run: |
+          if sudo -n true 2>/dev/null; then
+            echo "SUDO_AVAILABLE=true" >> $GITHUB_OUTPUT
+            echo "Passwordless sudo is available."
+          else
+            echo "SUDO_AVAILABLE=false" >> $GITHUB_OUTPUT
+            echo "Passwordless sudo is NOT available. Falling back to crontab @reboot."
+          fi
+
+      - name: Deploy via systemd (Sudo)
+        if: steps.check_sudo.outputs.SUDO_AVAILABLE == 'true'
+        run: |
+          echo "Setting up systemd services..."
+          
+          # Create Trader Service Unit
+          cat <<'EOF' > upbit-portfolio-trader.service
+[Unit]
+Description=Upbit Portfolio Trader Bot
+After=network.target
+
+[Service]
+Type=simple
+User=stoni
+WorkingDirectory=/home/stoni/Projects/AI
+ExecStart=/usr/bin/python3 -u upbit_portfolio_trader.py
+Restart=always
+RestartSec=10
+StandardOutput=append:/home/stoni/Projects/AI/upbit_portfolio_log.txt
+StandardError=append:/home/stoni/Projects/AI/upbit_portfolio_log.txt
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+          # Create Web Service Unit
+          cat <<'EOF' > upbit-portfolio-web.service
+[Unit]
+Description=Upbit Portfolio Web Server
+After=network.target
+
+[Service]
+Type=simple
+User=stoni
+WorkingDirectory=/home/stoni/Projects/AI
+ExecStart=/usr/bin/python3 -m http.server 8000
+Restart=always
+RestartSec=10
+StandardOutput=append:/home/stoni/Projects/AI/web_server_log.txt
+StandardError=append:/home/stoni/Projects/AI/web_server_log.txt
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+          sudo cp upbit-portfolio-trader.service /etc/systemd/system/
+          sudo cp upbit-portfolio-web.service /etc/systemd/system/
+          
+          sudo systemctl daemon-reload
+          sudo systemctl enable upbit-portfolio-trader.service upbit-portfolio-web.service
+          sudo systemctl restart upbit-portfolio-trader.service upbit-portfolio-web.service
+          
+          rm upbit-portfolio-trader.service upbit-portfolio-web.service
+          echo "Services deployed and restarted via systemd."
+
+      - name: Deploy via nohup and crontab fallback (No Sudo)
+        if: steps.check_sudo.outputs.SUDO_AVAILABLE != 'true'
+        run: |
+          echo "Sudo not available. Using nohup & crontab fallback..."
+          
+          # Stop existing background jobs
           pkill -9 -f upbit_portfolio_trader.py || true
-          echo "Stopping existing web server..."
           pkill -9 -f "python3 -m http.server" || true
           sleep 2
-
-      - name: Copy Configuration
-        run: |
-          echo "Copying config.json..."
-          cp /home/stoni/Projects/AI/config.json ./config.json
-
-      - name: Start Services
-        env:
-          RUNNER_TRACKING_ID: ""
-        run: |
-          echo "Starting new trader bot in background..."
+          
+          # Start in background from stable target directory
+          cd /home/stoni/Projects/AI
           nohup python3 -u upbit_portfolio_trader.py > upbit_portfolio_log.txt 2>&1 < /dev/null &
-          echo "Starting new web server on port 8000..."
           nohup python3 -m http.server 8000 > web_server_log.txt 2>&1 < /dev/null &
-          sleep 3
-          echo "Verifying running processes..."
-          ps aux | grep -e "upbit_portfolio_trader.py" -e "http.server" | grep -v grep
+          
+          # Setup crontab @reboot
+          crontab -l > mycron 2>/dev/null || true
+          
+          # Remove existing reboot rules if any to prevent duplicates
+          sed -i '/upbit_portfolio_trader.py/d' mycron || true
+          sed -i '/http.server 8000/d' mycron || true
+          
+          # Append reboot rules
+          echo "@reboot cd /home/stoni/Projects/AI && nohup python3 -u upbit_portfolio_trader.py > upbit_portfolio_log.txt 2>&1 < /dev/null &" >> mycron
+          echo "@reboot cd /home/stoni/Projects/AI && nohup python3 -m http.server 8000 > web_server_log.txt 2>&1 < /dev/null &" >> mycron
+          
+          crontab mycron
+          rm mycron
+          echo "Services deployed in background and crontab @reboot updated."
 
 
