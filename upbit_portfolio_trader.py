@@ -728,6 +728,7 @@ if __name__ == "__main__":
     print("XRP + ETH parallel scanning active. Press Ctrl+C to exit.")
     send_telegram_message("🔔 [Upbit Portfolio Bot] XRP & ETH 실시간 자율학습형 포트폴리오 트레이더 가동을 시작했습니다.")
     
+    cycle_count = 0
     try:
         while True:
             # 2. Check if 7 days (604,800 seconds) have elapsed for re-optimization
@@ -744,10 +745,12 @@ if __name__ == "__main__":
             # 4. Execute ETH Cycle
             state_eth = trader_eth.execute_trade_cycle()
             
-            # 5. Save combined dashboard data
-            if state_xrp and state_eth and state_xrp[0] is not None and state_eth[0] is not None:
-                save_merged_dashboard_data(trader_xrp, state_xrp, trader_eth, state_eth)
+            # 5. Save combined dashboard data (Every 3rd cycle = 90 seconds)
+            if cycle_count % 3 == 0:
+                if state_xrp and state_eth and state_xrp[0] is not None and state_eth[0] is not None:
+                    save_merged_dashboard_data(trader_xrp, state_xrp, trader_eth, state_eth)
                 
+            cycle_count += 1
             time.sleep(30) # Poll every 30 seconds
     except KeyboardInterrupt:
         print("\nUpbit Portfolio Bot stopped by user.")
