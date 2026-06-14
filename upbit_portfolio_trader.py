@@ -104,6 +104,43 @@ class UpbitAutoTrader:
         with open(self.log_file, "a", encoding="utf-8") as f:
             f.write(log_line)
 
+    def record_transaction(self, side, level, price, size, profit_pct=None):
+        import json
+        import os
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        tx_path = os.path.join(script_dir, "trade_history.json")
+        
+        history = []
+        if os.path.exists(tx_path):
+            try:
+                with open(tx_path, "r", encoding="utf-8") as f:
+                    history = json.load(f)
+            except Exception as e:
+                print(f"Error loading trade_history.json: {e}")
+                history = []
+                
+        tx = {
+            "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "market": self.market.replace("KRW-", ""),
+            "side": side,
+            "level": level,
+            "price": float(price),
+            "size": float(size),
+            "value": float(price * size),
+            "profit_pct": float(profit_pct) if profit_pct is not None else None,
+            "balance": float(self.balance)
+        }
+        history.append(tx)
+        
+        if len(history) > 100:
+            history = history[-100:]
+            
+        try:
+            with open(tx_path, "w", encoding="utf-8") as f:
+                json.dump(history, f, ensure_ascii=False)
+        except Exception as e:
+            print(f"Error saving trade_history.json: {e}")
+
     def fetch_upbit_candles(self, count=100):
         """
         Fetches the latest count candles from Upbit for self.market.
@@ -419,6 +456,7 @@ class UpbitAutoTrader:
                 self.peak_price = 0.0
                 self.pending_entry_price = 0.0
                 self.pending_entry_expires = 0.0
+                self.record_transaction("BUY", "L1", fill_price, self.position_size)
                 msg_text = f"=== [ENTRY: LEVEL 1 LIMIT FILLED] Price: {fill_price:,.4f}원 | Alloc Capital: {self.allocated_capital:,.0f}원 | Active Z-Thresh: {self.z_thresh} ==="
                 self.write_log(msg_text)
                 send_telegram_message(f"🚀 [{self.market}] 1차 매수 체결 (Limit)\n- 진입가: {fill_price:,.4f}원\n- 할당 자금: {self.allocated_capital:,.0f}원\n- Z-Thresh: {self.z_thresh}")
@@ -450,6 +488,7 @@ class UpbitAutoTrader:
                 self.position_avg_price = (self.position_size * self.position_avg_price + buy_amount) / (self.position_size + new_tokens)
                 self.position_size += new_tokens
                 self.level_2_filled = True
+                self.record_transaction("BUY", "L2", level_2_price, new_tokens)
                 msg_text = f"=== [GRID FILL: LEVEL 2 LIMIT] Price: {level_2_price:,.4f}원 | New Avg: {self.position_avg_price:,.4f}원 ==="
                 self.write_log(msg_text)
                 send_telegram_message(f"➕ [{self.market}] 2차 분할매수 체결 (Level 2)\n- 매수가: {level_2_price:,.4f}원\n- 새로운 평단가: {self.position_avg_price:,.4f}원")
@@ -461,6 +500,7 @@ class UpbitAutoTrader:
                 self.position_size += new_tokens
                 self.level_3_filled = True
                 self.l3_fill_time = time.time()
+                self.record_transaction("BUY", "L3", level_3_price, new_tokens)
                 msg_text = f"=== [GRID FILL: LEVEL 3 LIMIT] Price: {level_3_price:,.4f}원 | New Avg: {self.position_avg_price:,.4f}원 ==="
                 self.write_log(msg_text)
                 send_telegram_message(f"🔥 [{self.market}] 3차 분할매수 체결 (Level 3 - 최종)\n- 매수가: {level_3_price:,.4f}원\n- 새로운 평단가: {self.position_avg_price:,.4f}원")
@@ -487,6 +527,7 @@ class UpbitAutoTrader:
                     msg_text = f"=== [EXIT: L3 CUTOFF] Price: {sell_price:,.4f}원 | Profit: {profit_pct:+.2f}% | Held: {elapsed_min:.0f}분 | Balance: {self.balance:,.0f}원 ==="
                     self.write_log(msg_text)
                     send_telegram_message(f"⏱ [{self.market}] L3 시간 컷오프 청산 (BEP 회복)\n- 청산가: {sell_price:,.4f}원\n- 거래 수익률: {profit_pct:+.2f}%\n- L3 보유: {elapsed_min:.0f}분\n- 잔고: {self.balance:,.0f}원")
+                    self.record_transaction("SELL", "EXIT_CUTOFF", sell_price, self.position_size, profit_pct)
                     self.reset_trade_state()
                     return current_price, z_score, vol_power, df
 
@@ -520,6 +561,7 @@ class UpbitAutoTrader:
                     msg_text = f"=== [EXIT: TRAILING STOP LIMIT] Price: {sell_price:,.4f}원 | Profit: {profit_pct:+.2f}% | Balance: {self.balance:,.0f}원 ==="
                     self.write_log(msg_text)
                     send_telegram_message(f"💰 [{self.market}] 익절 청산 완료 (Trailing/Limit)\n- 청산가: {sell_price:,.4f}원\n- 거래 수익률: {profit_pct:+.2f}%\n- 잔고: {self.balance:,.0f}원")
+                    self.record_transaction("SELL", "EXIT_TP", sell_price, self.position_size, profit_pct)
                     self.reset_trade_state()
             else:
                 if current_price <= sl_price:
@@ -539,6 +581,7 @@ class UpbitAutoTrader:
                     msg_text = f"=== [EXIT: STOP LOSS MARKET] Price: {sell_price:,.4f}원 | Profit: {profit_pct:+.2f}% | Balance: {self.balance:,.0f}원 ==="
                     self.write_log(msg_text)
                     send_telegram_message(f"🚨 [{self.market}] 손절 청산 완료 (Stop Loss/Market)\n- 청산가: {sell_price:,.4f}원\n- 거래 수익률: {profit_pct:+.2f}%\n- 잔고: {self.balance:,.0f}원")
+                    self.record_transaction("SELL", "EXIT_SL", sell_price, self.position_size, profit_pct)
                     self.reset_trade_state()
 
         return current_price, z_score, vol_power, df
@@ -636,11 +679,22 @@ def save_merged_dashboard_data(trader_xrp, state_xrp, trader_eth, state_eth):
     except Exception as e:
         print(f"Error saving equity_history.json: {e}")
 
+    # Load trade history
+    tx_path = os.path.join(script_dir, "trade_history.json")
+    trade_history = []
+    if os.path.exists(tx_path):
+        try:
+            with open(tx_path, "r", encoding="utf-8") as f:
+                trade_history = json.load(f)
+        except Exception as e:
+            print(f"Error loading trade_history.json: {e}")
+
     # Unified output data
     data = {
         "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "mode": trader_xrp.mode,
         "total_balance": total_balance,
+        "trade_history": trade_history,
         
         "xrp": {
             "market": trader_xrp.market,
@@ -745,8 +799,8 @@ if __name__ == "__main__":
             # 4. Execute ETH Cycle
             state_eth = trader_eth.execute_trade_cycle()
             
-            # 5. Save combined dashboard data (Every 3rd cycle = 90 seconds)
-            if cycle_count % 3 == 0:
+            # 5. Save combined dashboard data (Every 10th cycle = 5 minutes)
+            if cycle_count % 10 == 0:
                 if state_xrp and state_eth and state_xrp[0] is not None and state_eth[0] is not None:
                     save_merged_dashboard_data(trader_xrp, state_xrp, trader_eth, state_eth)
                 

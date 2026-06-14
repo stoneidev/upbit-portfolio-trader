@@ -709,7 +709,36 @@
                     </div>
                 </div>
             </div>
-            
+        </div>
+
+        <!-- Trade History Panel -->
+        <div class="panel">
+            <div class="panel-header">
+                <h2 class="panel-title">PORTFOLIO TRADE HISTORY</h2>
+                <div style="font-size:0.75rem; color:var(--text-secondary); font-family: var(--font-mono);" id="history-count">0 TRANSACTIONS</div>
+            </div>
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 0.72rem; text-align: left;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid var(--border-color); color: var(--text-secondary); height: 28px;">
+                            <th style="padding: 4px 8px;">시간 (KST)</th>
+                            <th style="padding: 4px 8px;">자산</th>
+                            <th style="padding: 4px 8px;">구분</th>
+                            <th style="padding: 4px 8px;">단계/유형</th>
+                            <th style="padding: 4px 8px; text-align: right;">체결가 (KRW)</th>
+                            <th style="padding: 4px 8px; text-align: right;">수량</th>
+                            <th style="padding: 4px 8px; text-align: right;">총액 (KRW)</th>
+                            <th style="padding: 4px 8px; text-align: right;">수익률</th>
+                            <th style="padding: 4px 8px; text-align: right;">잔고 (KRW)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="trade-history-rows">
+                        <tr>
+                            <td colspan="9" style="text-align: center; padding: 20px; color: var(--text-muted);">조회된 거래 기록이 없습니다.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <!-- Logs Panel -->
@@ -1005,6 +1034,37 @@
                     document.getElementById('equity-update-time').innerText = `RETURN: ${totalProfitPct >= 0 ? '+' : ''}${totalProfitPct.toFixed(2)}% | ${formattedHistory.length} DAYS`;
                 } else {
                     document.getElementById('equity-update-time').innerText = "NO EQUITY DATA FOUND";
+                }
+                
+                // Update Trade History
+                const historyDom = document.getElementById('trade-history-rows');
+                const historyCountDom = document.getElementById('history-count');
+                if (data.trade_history && data.trade_history.length > 0) {
+                    historyCountDom.innerText = `${data.trade_history.length} TRANSACTIONS`;
+                    const sortedHistory = [...data.trade_history].reverse();
+                    
+                    historyDom.innerHTML = sortedHistory.map(tx => {
+                        const sideClass = tx.side === 'BUY' ? 'txt-green' : 'txt-red';
+                        const profitClass = tx.profit_pct !== null ? (tx.profit_pct >= 0 ? 'txt-green' : 'txt-red') : '';
+                        const profitStr = tx.profit_pct !== null ? `${tx.profit_pct >= 0 ? '+' : ''}${tx.profit_pct.toFixed(2)}%` : '-';
+                        
+                        return `
+                            <tr style="border-bottom: 1px solid var(--border-muted); height: 26px;">
+                                <td style="padding: 4px 8px; color: var(--text-secondary);">${tx.timestamp}</td>
+                                <td style="padding: 4px 8px; font-weight: 700; color: #ffffff;">${tx.market}</td>
+                                <td style="padding: 4px 8px; font-weight: 700;" class="${sideClass}">${tx.side}</td>
+                                <td style="padding: 4px 8px; color: var(--text-secondary);">${tx.level}</td>
+                                <td style="padding: 4px 8px; text-align: right; color: #ffffff;">${Math.floor(tx.price).toLocaleString()}</td>
+                                <td style="padding: 4px 8px; text-align: right; color: var(--text-secondary);">${tx.size.toFixed(4)}</td>
+                                <td style="padding: 4px 8px; text-align: right; color: #ffffff;">${Math.floor(tx.value).toLocaleString()}</td>
+                                <td style="padding: 4px 8px; text-align: right; font-weight: 700;" class="${profitClass}">${profitStr}</td>
+                                <td style="padding: 4px 8px; text-align: right; color: var(--text-secondary);">${Math.floor(tx.balance).toLocaleString()}</td>
+                            </tr>
+                        `;
+                    }).join('');
+                } else {
+                    historyCountDom.innerText = "0 TRANSACTIONS";
+                    historyDom.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 20px; color: var(--text-muted);">조회된 거래 기록이 없습니다.</td></tr>';
                 }
                 
                 // Update Logs
