@@ -470,12 +470,16 @@ class UpbitAutoTrader:
         if not self.in_trade and self.pending_entry_price == 0:
             c1 = z_score < self.z_thresh
             c2 = vol_power > self.vol_power_thresh
-            if c1 and c2:
-                self.pending_entry_price = current_price
-                self.pending_entry_expires = time.time() + self.entry_timeout_sec
-                msg_text = f"=== [ENTRY: LIMIT QUEUED] Price: {current_price:,.4f}원 | Z={z_score:.2f} | VP={vol_power:.1f}% | Expires: {self.entry_timeout_sec//60}분 ==="
-                self.write_log(msg_text)
-                send_telegram_message(f"📥 [{self.market}] 1차 매수 지정가 등록\n- 지정가: {current_price:,.4f}원\n- Z-Score: {z_score:.2f}\n- 체결강도: {vol_power:.1f}%")
+            if c1:
+                if c2:
+                    self.pending_entry_price = current_price
+                    self.pending_entry_expires = time.time() + self.entry_timeout_sec
+                    msg_text = f"=== [ENTRY: LIMIT QUEUED] Price: {current_price:,.4f}원 | Z={z_score:.2f} | VP={vol_power:.1f}% | Expires: {self.entry_timeout_sec//60}분 ==="
+                    self.write_log(msg_text)
+                    send_telegram_message(f"📥 [{self.market}] 1차 매수 지정가 등록\n- 지정가: {current_price:,.4f}원\n- Z-Score: {z_score:.2f}\n- 체결강도: {vol_power:.1f}%")
+                else:
+                    msg_text = f"[NEAR-MISS] Z-Score met (Z={z_score:.2f} < {self.z_thresh}) but Volume Power too low (VP={vol_power:.1f}% <= {self.vol_power_thresh}%)"
+                    self.write_log(msg_text)
 
         # 3) Manage open trade (grids + exits)
         if self.in_trade:
