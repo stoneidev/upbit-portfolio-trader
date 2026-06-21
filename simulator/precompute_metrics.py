@@ -9,7 +9,8 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import engine
 
-DB_PATH = "/Users/stoni/Projects/AI/simulator/data/nasdaq_simulator.db"
+SIMULATOR_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(SIMULATOR_DIR, "data", "nasdaq_simulator.db")
 
 def precompute():
     print(f"Connecting to database: {DB_PATH}")

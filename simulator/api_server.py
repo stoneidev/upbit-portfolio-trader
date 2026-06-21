@@ -21,7 +21,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-STATE_FILE = "/Users/stoni/Projects/AI/simulator/data/simulator_state.json"
+SIMULATOR_DIR = os.path.dirname(os.path.abspath(__file__))
+STATE_FILE = os.path.join(SIMULATOR_DIR, "data", "simulator_state.json")
 INITIAL_CASH = 100000.0
 FEE_RATE = 0.0015  # 0.15% commission
 

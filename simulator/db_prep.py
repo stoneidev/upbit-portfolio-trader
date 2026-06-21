@@ -6,7 +6,7 @@ import yfinance as yf
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Define directories
-SIMULATOR_DIR = "/Users/stoni/Projects/AI/simulator"
+SIMULATOR_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(SIMULATOR_DIR, "data")
 os.makedirs(DATA_DIR, exist_ok=True)
 

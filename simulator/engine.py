@@ -3,7 +3,8 @@ import sqlite3
 import pandas as pd
 import numpy as np
 
-DB_PATH = "/Users/stoni/Projects/AI/simulator/data/nasdaq_simulator.db"
+SIMULATOR_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(SIMULATOR_DIR, "data", "nasdaq_simulator.db")
 
 TOP50_TICKERS = [
     "NVDA", "AAPL", "MSFT", "AMZN", "GOOGL", "GOOG", "META", "AVGO", "TSLA", "COST",
@@ -15,7 +16,7 @@ TOP50_TICKERS = [
 
 import json
 
-SHARES_PATH = "/Users/stoni/Projects/AI/simulator/data/shares_outstanding.json"
+SHARES_PATH = os.path.join(SIMULATOR_DIR, "data", "shares_outstanding.json")
 
 def load_shares_outstanding():
     if os.path.exists(SHARES_PATH):

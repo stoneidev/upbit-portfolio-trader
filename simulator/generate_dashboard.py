@@ -6,8 +6,8 @@ import datetime
 import numpy as np
 import pandas as pd
 
-# Paths
-DB_PATH = "/Users/stoni/Projects/AI/simulator/data/nasdaq_simulator.db"
+SIMULATOR_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(SIMULATOR_DIR, "data", "nasdaq_simulator.db")
 ARTIFACT_DIR = "/Users/stoni/.gemini/antigravity/brain/78b9864b-3618-46a6-ad91-15dcb23e1b46"
 os.makedirs(ARTIFACT_DIR, exist_ok=True)
 
