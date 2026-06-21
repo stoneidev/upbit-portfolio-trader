@@ -4,7 +4,12 @@
 
 # Ignore data JSON & CSV
 *.json
+!package.json
+!tsconfig.json
 *.csv
+*.db
+*.sql
+.wrangler/
 
 # Ignore node modules and cache
 node_modules/

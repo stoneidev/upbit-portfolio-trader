@@ -1,0 +1,12 @@
+name = "nasdaq-simulator-backend"
+main = "src/index.ts"
+compatibility_date = "2024-06-18"
+
+[[kv_namespaces]]
+binding = "SIMULATOR_KV"
+id = "493b4919f2cd42609834e06ec4ab032a"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "nasdaq-simulator-db"
+database_id = "2a67a08a-3d95-4b2b-9094-8897e5813caf"
