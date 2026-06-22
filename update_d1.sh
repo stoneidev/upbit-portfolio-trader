@@ -23,16 +23,19 @@ python3 simulator/precompute_metrics.py
 echo "STEP 3: Dumping metrics table from SQLite..."
 sqlite3 simulator/data/nasdaq_simulator.db ".dump daily_metrics" > simulator/data/daily_metrics.sql
 
-# 4. Clean up transaction statements from SQL file (unsupported by D1 upload)
-echo "STEP 4: Cleaning SQL dump file..."
+# 4. Clean up transaction statements from SQL file (unsupported by D1 upload) and add DROP TABLE + INDEX commands
+echo "STEP 4: Cleaning SQL dump file and adding schema setups..."
 python3 -c '
 with open("simulator/data/daily_metrics.sql", "r") as f:
     lines = f.readlines()
 with open("simulator/data/daily_metrics_clean.sql", "w") as f:
+    f.write("DROP TABLE IF EXISTS daily_metrics;\n")
     for line in lines:
         if line.strip() in ["BEGIN TRANSACTION;", "COMMIT;", "PRAGMA foreign_keys=OFF;"]:
             continue
         f.write(line)
+    f.write("\nCREATE INDEX IF NOT EXISTS idx_metrics_ticker_date ON daily_metrics (Ticker, Date);\n")
+    f.write("CREATE INDEX IF NOT EXISTS idx_metrics_date ON daily_metrics (Date);\n")
 '
 
 # 5. Sync with Cloudflare D1
