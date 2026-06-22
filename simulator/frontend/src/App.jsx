@@ -221,7 +221,7 @@ function App() {
         if (oldDate && oldDate !== newDate) {
           stateData.entered_top30.forEach(item => {
             addNotification(
-              `🚀 [${item.ticker}] Top 30 진입! 모멘텀 순위: ${item.curr_rank}위 (기존: ${item.prev_rank}위)`,
+              `🚀 [${item.ticker}] 모멘텀 Top 30 진입! 순위: ${item.curr_rank}위 (기존: ${item.prev_rank}위)`,
               'success'
             );
           });
@@ -235,7 +235,7 @@ function App() {
       if (oldDate && oldDate !== newDate && stateData.exited_top30 && stateData.exited_top30.length > 0) {
         stateData.exited_top30.forEach(item => {
           addNotification(
-            `⚠️ [${item.ticker}] Top 30 이탈! 모멘텀 순위: ${item.curr_rank}위 (기존: ${item.prev_rank}위)`,
+            `⚠️ [${item.ticker}] 모멘텀 Top 30 이탈! 순위: ${item.curr_rank}위 (기존: ${item.prev_rank}위)`,
             'warning'
           );
         });
@@ -589,9 +589,9 @@ function App() {
                           {isNewTop30 && (
                             <span 
                               className="badge-new-top30" 
-                              title={`순위 상승! 기존: ${top30Item?.prev_rank}위 -> 현재: ${top30Item?.curr_rank}위`}
+                              title={`모멘텀 순위 상승! 기존: ${top30Item?.prev_rank}위 -> 현재: ${top30Item?.curr_rank}위`}
                             >
-                              NEW 30
+                              MOM 30
                             </span>
                           )}
                         </td>
