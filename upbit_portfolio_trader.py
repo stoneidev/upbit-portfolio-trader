@@ -60,7 +60,7 @@ class UpbitAutoTrader:
 
         # Strategy parameters (Optimized dynamically by WFO)
         self.z_thresh = -1.2
-        self.vol_power_thresh = 50.0  # Kept constant at 50% for volume power filter
+        self.vol_power_thresh = 60.0  # Kept constant at 60% for volume power filter
         self.tp_pct = 0.5
         self.sl_pct = -2.0
 
@@ -408,7 +408,7 @@ class UpbitAutoTrader:
         df_opt["z_score"] = (df_opt["close"] - df_opt["ma_100"]) / (df_opt["std_100"] + 1e-9)
         df_opt = df_opt.dropna().reset_index(drop=True)
         
-        z_candidates = [-1.0, -1.2, -1.5, -1.8, -2.0]
+        z_candidates = [-1.5, -1.8, -2.0]
         best_return = -999.0
         best_z = self.z_thresh
         
